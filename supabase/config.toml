@@ -1,0 +1,36 @@
+# Supabase project config.
+# `project_id` is set per environment via `supabase link --project-ref <ref>`.
+
+project_id = "shadow"
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 15
+
+[studio]
+port = 54323
+enabled = true
+
+[api]
+port = 54321
+schemas = ["public", "storage", "graphql_public"]
+max_rows = 1000
+
+[auth]
+site_url = "http://localhost:3007"
+additional_redirect_urls = [
+  "http://localhost:3007",
+  "http://localhost:3007/auth/callback",
+]
+enable_signup = true
+enable_anonymous_sign_ins = false
+enable_manual_linking = false
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = true
+enable_confirmations = true
+
+[storage]
+file_size_limit = "50MiB"

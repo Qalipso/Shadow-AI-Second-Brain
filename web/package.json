@@ -1,0 +1,41 @@
+{
+  "name": "shadow-web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "NODE_OPTIONS='--max-old-space-size=2048 --max-semi-space-size=64' next dev",
+    "dev:safe": "bash ./scripts/dev-safe.sh",
+    "build": "NODE_OPTIONS='--max-old-space-size=3072' next build",
+    "start": "next start",
+    "lint": "eslint",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:report": "playwright show-report"
+  },
+  "dependencies": {
+    "@supabase/ssr": "^0.10.3",
+    "@supabase/supabase-js": "^2.105.4",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.469.0",
+    "motion": "^12.39.0",
+    "next": "16.2.6",
+    "openai": "^6.37.0",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0",
+    "vitest": "^2.1.0",
+    "@tailwindcss/postcss": "^4.1.0",
+    "@types/node": "^20.14.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "eslint": "^9.0.0",
+    "eslint-config-next": "16.2.6",
+    "tailwindcss": "^4.1.0",
+    "typescript": "^5.6.0"
+  }
+}

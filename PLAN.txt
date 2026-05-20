@@ -1,0 +1,259 @@
+SHADOW — MASTER PLAN
+=====================
+AI-powered second memory + life analytics dashboard.
+Personal-use MVP first. Portfolio case after.
+
+-----------------------------------------------------
+1. PROJECT TREE
+-----------------------------------------------------
+shadow/
+├── PLAN.txt                  ← this file
+├── docs/                     ← PRD, personas, user stories, IA, flows
+│   ├── PRD.md
+│   ├── personas.md
+│   ├── user-stories.md
+│   ├── user-flows.md
+│   ├── information-architecture.md
+│   ├── metrics.md
+│   ├── risks-tradeoffs.md
+│   └── competitive-landscape.md
+├── web/                      ← Next.js + TS + Tailwind app (Phase 1)
+│   ├── README.md
+│   └── (next init pending)
+├── db/                       ← Supabase / Postgres
+│   ├── schema/
+│   │   └── shadow.sql        ← MVP table set
+│   ├── migrations/
+│   └── seeds/
+│       ├── life_areas.sql
+│       └── question_bank.sql
+├── ai/                       ← LLM layer
+│   ├── prompts/
+│   │   ├── 01-classification.md
+│   │   ├── 02-daily-questions.md
+│   │   ├── 03-contextual-followup.md
+│   │   ├── 04-daily-report.md
+│   │   ├── 05-weekly-review.md
+│   │   ├── 06-life-area-scoring.md
+│   │   ├── 07-insight-generation.md
+│   │   └── 08-rag-context-usage.md
+│   ├── pipelines/
+│   │   └── classify-entry.md ← step-by-step pipeline spec
+│   └── rag/
+│       └── memory-architecture.md
+├── design/                   ← Figma + UI prep
+│   ├── brief/
+│   │   └── design-brief.md
+│   ├── wireframes/           ← exported PNG/SVG later
+│   └── tokens/
+│       └── tokens.json       ← colors, type, spacing
+├── planning/                 ← execution
+│   ├── roadmap.md
+│   ├── backlog.md
+│   ├── sprint-01.md
+│   ├── events-tracking.md
+│   └── agents-skills.md      ← which Claude agents/skills to use
+├── case-study/               ← portfolio output
+│   └── shadow-case-study.md
+└── scripts/                  ← dev tooling later
+    └── README.md
+
+-----------------------------------------------------
+2. EXECUTION PHASES
+-----------------------------------------------------
+Phase 0  Product Foundation       (docs/, PRD, scope, 12 areas)
+Phase 1  App Skeleton             (Next.js, Supabase, auth, layout)
+Phase 2  Database                 (schema, RLS, migrations, seeds)
+Phase 3  AI Inbox                 (input → classify → store)
+Phase 4  Daily Questions          (bank, selector, answer flow)
+Phase 5  Dashboard                (today summary, life wheel, cards)
+Phase 6  Reports                  (daily, weekly, rating)
+Phase 7  RAG Memory               (pgvector, similarity, retrieval)
+Phase 8  Portfolio Polish         (demo data, case study, screenshots)
+
+-----------------------------------------------------
+3. CORE STACK
+-----------------------------------------------------
+Frontend     Next.js 15 (App Router) + TS + Tailwind v4
+UI kit       shadcn/ui + custom Shadow tokens
+Charts       Recharts (life wheel, trends)
+Backend      Next.js API routes + Supabase
+DB           Postgres + pgvector
+Auth         Supabase Auth (email magic link)
+LLM          Claude (Sonnet 4.6) primary, Haiku for fast classify
+Embeddings   OpenAI text-embedding-3-small (or Voyage)
+Hosting      Vercel
+Analytics    PostHog (events) + own metrics tables
+
+-----------------------------------------------------
+4. MVP DATA MODEL (slim version)
+-----------------------------------------------------
+users, life_areas, entries, entry_classifications,
+tasks, goals, questions, question_answers,
+life_area_scores, reports, memory_embeddings,
+insights, expenses, food_logs, emotion_logs, metric_logs.
+(Full schema → db/schema/shadow.sql)
+
+-----------------------------------------------------
+5. AGENTS — WHICH TO USE & WHEN
+-----------------------------------------------------
+Phase 0 — Foundation
+  • planner                 ← PRD, MVP scope, sprint breakdown
+  • architect               ← system design, data model decisions
+  • uiux-pro-max-designer   ← design system: style, palette, fonts, UX rules
+  • google-stitch-designer  ← multi-screen wireframes from text
+  • doc-updater             ← keep PRD/PLAN docs in sync
+
+Phase 1 — App Skeleton
+  • planner                 ← break Phase 1 into tasks
+  • magic-ui-component-gen  ← React/TS components from 21st.dev
+  • code-reviewer           ← after each commit
+  • build-error-resolver    ← when Next.js build fails
+  • tdd-guide               ← write tests before features
+
+Phase 2 — Database
+  • database-reviewer       ← Postgres / Supabase schema review
+  • architect               ← RLS policy design
+
+Phase 3 — AI Inbox
+  • architect               ← AI pipeline spec
+  • tdd-guide               ← classification tests w/ fixtures
+  • security-reviewer       ← prompt injection + PII handling
+
+Phase 4 — Daily Questions
+  • magic-ui-component-gen  ← question cards UI
+  • tdd-guide               ← selector logic tests
+
+Phase 5 — Dashboard
+  • uiux-pro-max-designer   ← layout, hierarchy
+  • magic-ui-component-gen  ← cards, life wheel
+  • nano-banana-image-gen   ← hero/empty-state imagery
+  • code-reviewer           ← after each batch
+
+Phase 6 — Reports
+  • architect               ← report generation pipeline
+  • tdd-guide               ← snapshot tests for report shape
+
+Phase 7 — RAG Memory
+  • architect               ← memory architecture
+  • database-reviewer       ← pgvector indexing strategy
+  • security-reviewer       ← user-data isolation
+
+Phase 8 — Portfolio
+  • doc-updater             ← case study writing
+  • nano-banana-image-gen   ← case study visuals
+  • google-stitch-designer  ← polished screen mocks
+  • e2e-runner              ← record demo flows
+
+Cross-cutting (every phase)
+  • code-reviewer           ← run after non-trivial changes
+  • security-reviewer       ← before commits touching auth/data
+  • refactor-cleaner        ← periodic dead-code sweeps
+  • harness-optimizer       ← tune agent action space if stuck
+
+-----------------------------------------------------
+6. SKILLS — WHICH TO USE & WHEN
+-----------------------------------------------------
+Product / planning
+  • blueprint               ← turn one-liner → multi-step plan w/ deps
+  • prompt-optimizer        ← refine AI prompts before shipping
+  • market-research         ← validate competitors (Mem/Tana/Exist…)
+  • article-writing         ← case study, blog post for portfolio
+  • content-engine          ← repurpose case study across platforms
+
+Architecture / backend
+  • postgres-patterns       ← schema, indexes, RLS, pgvector
+  • api-design              ← REST routes, error envelopes, pagination
+  • database-migrations     ← Supabase migrations, zero-downtime
+  • backend-patterns        ← Next.js API routes, services
+  • mcp-server-patterns     ← if exposing Shadow as MCP later
+
+Frontend
+  • frontend-patterns       ← React/Next.js patterns
+  • 21st-dev-magic          ← /ui component generation
+  • uiux-pro-max            ← style/palette/font/UX rules DB
+  • google-stitch           ← multi-screen UI from text
+  • coding-standards        ← TS/React conventions
+
+AI / RAG
+  • claude-api              ← Messages, tools, JSON mode, caching
+  • claude-developer-platform ← Agent SDK if multi-step agents needed
+  • cost-aware-llm-pipeline ← Haiku for classify, Sonnet for reports
+  • iterative-retrieval     ← progressive RAG context refinement
+  • regex-vs-llm-structured-text ← regex first for dates/numbers
+  • content-hash-cache-pattern ← cache classification by entry hash
+
+Testing / quality
+  • tdd-workflow            ← write tests first, 80%+ coverage
+  • python-testing | e2e-testing ← pytest/playwright as needed
+  • ai-regression-testing   ← sandbox-mode AI tests, no DB
+  • verification-loop       ← post-edit verify
+  • security-review         ← auth + user-input checklist
+
+Design / media
+  • fal-ai-media            ← hero images, illustrations
+  • nano-banana-pro         ← icons, diagrams, patterns
+  • liquid-glass-design     ← if iOS-style glass cards desired
+
+Deployment
+  • deployment-patterns     ← CI/CD, health checks
+  • docker-patterns         ← if self-hosting Supabase locally
+
+Workflow
+  • search-first            ← research before custom code
+  • strategic-compact       ← compact context between phases
+  • caveman                 ← terse comms (already on)
+  • caveman-commit          ← commit messages
+  • caveman-review          ← terse PR review
+  • save-session / resume-session ← persist work across sessions
+
+-----------------------------------------------------
+7. MCP SERVERS NEEDED
+-----------------------------------------------------
+  • context7                ← Next.js/Supabase/pgvector docs
+  • 21st-dev-magic          ← React component generation
+  • google-stitch           ← Stitch UI design
+  • nano-banana             ← Gemini CLI image gen
+  • firecrawl + exa         ← competitor research
+  • cloudflare-* (optional) ← if hosting on CF Workers later
+
+-----------------------------------------------------
+8. FIRST SPRINT (1 week)
+-----------------------------------------------------
+Goal: usable AI Inbox writing to Supabase with classification.
+
+Day 1  PRD + MVP scope (docs/PRD.md)
+       Database schema v1 (db/schema/shadow.sql)
+       Design brief + tokens (design/)
+Day 2  Next.js init, Supabase project, auth working
+       Seed life_areas + question_bank
+Day 3  AI Inbox UI (input + history list)
+       Classification API route + Claude prompt
+Day 4  Save entry + classification + extracted entities
+       Manual correction UI
+Day 5  Dashboard skeleton: today summary + recent entries
+       Daily questions modal w/ 5 random questions
+Day 6  Daily report v0 (text only, no charts)
+       Embeddings table + nightly job stub
+Day 7  Personal dogfood + bug list + sprint review
+
+-----------------------------------------------------
+9. SUCCESS DEFINITION (MVP)
+-----------------------------------------------------
+  • I capture ≥3 entries/day for 2 weeks straight
+  • Classification accuracy ≥80% subjective
+  • Daily report opened ≥5 days/week
+  • Weekly review feels actionable, not generic
+  • Case study draft published to portfolio site
+
+-----------------------------------------------------
+10. RISKS
+-----------------------------------------------------
+  • AI generic output → fix via RAG context + low-confidence flags
+  • Over-engineering → ship slim MVP schema first
+  • Privacy → all data user-scoped via RLS, no analytics on raw text
+  • Cost → Haiku for classification, Sonnet only for reports
+  • Adoption (self) → daily questions reduce friction
+  • Scope creep → freeze MVP scope after Phase 0 PRD
+
+END.

@@ -1,0 +1,651 @@
+@import "tailwindcss";
+
+/* Shadow palette — dark only. Minimal tokens. */
+:root {
+  --bg-base: #0B0B10;
+  --bg-elev1: #14141B;
+  --bg-elev2: #1C1C26;
+  --bg-elev3: #23232F;
+  --text-primary: #F2EEE6;
+  --text-muted: #9892A1;
+  --text-subtle: #5E5867;
+  --accent-warm: #C9A36A;
+  --accent-cool: #6D7BFF;
+  --state-danger: #E36161;
+  --state-success: #6FBF8A;
+  --state-warning: #E0B25C;
+  --border: rgba(255, 255, 255, 0.08);
+  --radius: 0.75rem;
+
+  /* Shadow Protocols — cell state colors (muted, organic) */
+  --cell-done: rgba(113, 179, 139, 0.65);
+  --cell-partial: rgba(126, 87, 194, 0.50);
+  --cell-missed: rgba(172, 82, 101, 0.35);
+  --cell-failed: rgba(172, 82, 101, 0.55);
+  --cell-skipped: rgba(100, 116, 139, 0.22);
+  --cell-recovered: rgba(214, 184, 116, 0.55);
+  --cell-empty: rgba(255, 255, 255, 0.03);
+
+  /* Shadow design tokens */
+  --shadow-bg: #09090f;
+  --shadow-bg-deep: #050509;
+  --shadow-panel: rgba(20, 20, 30, 0.72);
+  --shadow-panel-soft: rgba(28, 26, 38, 0.58);
+  --shadow-border: rgba(180, 170, 220, 0.10);
+  --shadow-border-active: rgba(214, 184, 116, 0.34);
+  --shadow-text: #ede9df;
+  --shadow-text-muted: #8d8799;
+  --shadow-text-faint: #5f5a68;
+  --shadow-violet: rgba(126, 87, 194, 0.75);
+  --shadow-blue: rgba(68, 91, 140, 0.55);
+  --shadow-gold: rgba(214, 184, 116, 0.85);
+  --shadow-green: rgba(113, 179, 139, 0.72);
+  --shadow-red: rgba(172, 82, 101, 0.62);
+  --shadow-glow-violet: 0 0 32px rgba(126, 87, 194, 0.18);
+  --shadow-glow-gold: 0 0 24px rgba(214, 184, 116, 0.16);
+}
+
+@theme inline {
+  --color-bg: var(--bg-base);
+  --color-elev1: var(--bg-elev1);
+  --color-elev2: var(--bg-elev2);
+  --color-elev3: var(--bg-elev3);
+  --color-fg: var(--text-primary);
+  --color-muted: var(--text-muted);
+  --color-subtle: var(--text-subtle);
+  --color-warm: var(--accent-warm);
+  --color-cool: var(--accent-cool);
+  --color-danger: var(--state-danger);
+  --color-success: var(--state-success);
+  --color-warning: var(--state-warning);
+  --color-border: var(--border);
+  --font-sans: var(--font-geist), var(--font-inter), system-ui, -apple-system, sans-serif;
+  --font-heading: var(--font-fraunces), Georgia, serif;
+}
+
+@layer base {
+  html,
+  body {
+    background: var(--bg-base);
+    color: var(--text-primary);
+  }
+  html {
+    font-family: var(--font-geist), var(--font-inter), system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection {
+    background: rgba(201, 163, 106, 0.25);
+  }
+}
+
+/* Ambient radial glow — warm top-left, cool bottom-right, alive. */
+.bg-shadow-glow {
+  background:
+    radial-gradient(70% 50% at 15% -5%, rgba(201,163,106,0.07), transparent 65%),
+    radial-gradient(50% 50% at 85% 105%, rgba(109,123,255,0.06), transparent 65%),
+    radial-gradient(30% 30% at 50% 50%, rgba(201,163,106,0.02), transparent 80%);
+}
+
+/* Orb pulse — paused under reduced-motion. */
+@keyframes orb-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(201,163,106,0.35), 0 12px 32px rgba(0,0,0,0.6); }
+  50%      { box-shadow: 0 0 0 14px rgba(201,163,106,0.00), 0 12px 32px rgba(0,0,0,0.6); }
+}
+.orb-pulse {
+  animation: orb-pulse 3.6s ease-in-out infinite;
+  will-change: box-shadow;
+}
+
+/* ─── Base animations ──────────────────────────────────────────────────── */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes backdrop-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes shimmer {
+  0%   { background-position: -200px 0; }
+  100% { background-position: calc(200px + 100%) 0; }
+}
+
+.anim-fade-in   { animation: fade-in 300ms cubic-bezier(.14,1,.34,1) both; }
+.anim-fade-up   { animation: fade-in-up 420ms cubic-bezier(.14,1,.34,1) both; }
+.anim-scale-in  { animation: scale-in 280ms cubic-bezier(.14,1,.34,1) both; }
+.anim-backdrop  { animation: backdrop-in 180ms ease-out both; }
+.anim-stagger > * { animation: fade-in-up 420ms cubic-bezier(.14,1,.34,1) both; }
+.anim-stagger > *:nth-child(1)  { animation-delay:  30ms; }
+.anim-stagger > *:nth-child(2)  { animation-delay:  80ms; }
+.anim-stagger > *:nth-child(3)  { animation-delay: 130ms; }
+.anim-stagger > *:nth-child(4)  { animation-delay: 180ms; }
+.anim-stagger > *:nth-child(5)  { animation-delay: 230ms; }
+.anim-stagger > *:nth-child(6)  { animation-delay: 280ms; }
+.anim-stagger > *:nth-child(7)  { animation-delay: 330ms; }
+.anim-stagger > *:nth-child(8)  { animation-delay: 380ms; }
+.anim-stagger > *:nth-child(9)  { animation-delay: 430ms; }
+.anim-stagger > *:nth-child(10) { animation-delay: 480ms; }
+.anim-stagger > *:nth-child(11) { animation-delay: 530ms; }
+.anim-stagger > *:nth-child(12) { animation-delay: 580ms; }
+
+/* ─── Gradient text ─────────────────────────────────────────────────── */
+.text-gradient {
+  background: linear-gradient(135deg, var(--accent-warm), var(--accent-cool));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.text-gradient-subtle {
+  background: linear-gradient(135deg, var(--text-primary), var(--accent-warm));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* ─── Glass / frost elevation ───────────────────────────────────────── */
+.glass {
+  background: rgba(20, 20, 27, 0.65);
+  backdrop-filter: blur(16px) saturate(1.4);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* ─── Card hover — scale + glow ─────────────────────────────────────── */
+.card-hover {
+  transition:
+    border-color 260ms cubic-bezier(.14,1,.34,1),
+    box-shadow 260ms cubic-bezier(.14,1,.34,1),
+    background-color 260ms cubic-bezier(.14,1,.34,1),
+    transform 260ms cubic-bezier(.14,1,.34,1);
+}
+.card-hover:hover {
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 0 24px rgba(201, 163, 106, 0.06), 0 8px 32px rgba(0, 0, 0, 0.3);
+  transform: translateY(-2px);
+}
+
+/* Accent glow variant — warm border glow on hover. */
+.card-glow:hover {
+  border-color: rgba(201, 163, 106, 0.25);
+  box-shadow: 0 0 30px rgba(201, 163, 106, 0.08), 0 0 60px rgba(109, 123, 255, 0.04);
+}
+
+/* ─── Gradient divider line ─────────────────────────────────────────── */
+.glow-line {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(201, 163, 106, 0.2), rgba(109, 123, 255, 0.15), transparent);
+}
+
+/* ─── Hairline divider (near-invisible, structural) ──────────────────── */
+.hairline {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.05);
+  width: 100%;
+}
+
+/* ─── Quest shimmer (premium completion glow) ───────────────────────── */
+@keyframes quest-shimmer {
+  0%, 100% {
+    box-shadow:
+      0 0 24px rgba(214, 184, 116, 0.18),
+      0 0 60px rgba(126, 87, 194, 0.10),
+      inset 0 0 18px rgba(214, 184, 116, 0.06);
+  }
+  50% {
+    box-shadow:
+      0 0 38px rgba(214, 184, 116, 0.28),
+      0 0 96px rgba(126, 87, 194, 0.18),
+      inset 0 0 28px rgba(214, 184, 116, 0.10);
+  }
+}
+.quest-shimmer {
+  animation: quest-shimmer 3.4s ease-in-out infinite;
+  will-change: box-shadow;
+}
+@keyframes quest-sparkle {
+  0%, 100% { opacity: 0.0; transform: scale(0.6); }
+  20%      { opacity: 0.9; }
+  50%      { opacity: 0.4; transform: scale(1.0); }
+  80%      { opacity: 0.7; }
+}
+.quest-sparkle {
+  animation: quest-sparkle 2.6s ease-in-out infinite;
+  will-change: opacity, transform;
+}
+@media (prefers-reduced-motion: reduce) {
+  .quest-shimmer, .quest-sparkle { animation: none; }
+}
+
+/* ─── 2026 panel primitives ──────────────────────────────────────────── */
+/* panel-ambient: default. No border. Soft bg + blur. Hover lifts subtly. */
+.panel-ambient {
+  position: relative;
+  background: var(--shadow-panel);
+  backdrop-filter: blur(14px) saturate(1.3);
+  -webkit-backdrop-filter: blur(14px) saturate(1.3);
+  border-radius: var(--radius);
+  transition:
+    box-shadow 320ms cubic-bezier(.14,1,.34,1),
+    background-color 320ms cubic-bezier(.14,1,.34,1),
+    transform 320ms cubic-bezier(.14,1,.34,1);
+}
+.panel-ambient:hover {
+  background: rgba(24, 22, 32, 0.78);
+  box-shadow: 0 0 30px rgba(201, 163, 106, 0.05), 0 8px 28px rgba(0, 0, 0, 0.28);
+}
+
+/* panel-bloom: hero surface. Persistent ambient glow halo + directional gradient. */
+.panel-bloom {
+  position: relative;
+  background:
+    radial-gradient(80% 100% at 0% 0%, rgba(126, 87, 194, 0.07) 0%, transparent 60%),
+    radial-gradient(60% 80% at 100% 100%, rgba(214, 184, 116, 0.05) 0%, transparent 65%),
+    var(--shadow-panel);
+  backdrop-filter: blur(18px) saturate(1.4);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  border-radius: var(--radius);
+  box-shadow:
+    0 0 40px rgba(214, 184, 116, 0.06),
+    0 0 80px rgba(126, 87, 194, 0.04),
+    0 12px 40px rgba(0, 0, 0, 0.35);
+}
+
+/* panel-bloom-gold: action-first / CTA hero variant */
+.panel-bloom-gold {
+  position: relative;
+  background:
+    radial-gradient(70% 100% at 0% 50%, rgba(214, 184, 116, 0.10) 0%, transparent 65%),
+    rgba(24, 20, 28, 0.65);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-radius: var(--radius);
+  box-shadow: 0 0 32px rgba(214, 184, 116, 0.10), 0 0 70px rgba(214, 184, 116, 0.04);
+}
+
+/* panel-ghost: no container at all. Only padding + radius. For status rows / metadata. */
+.panel-ghost {
+  position: relative;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius);
+}
+
+/* accent-top-line: violet hairline as the only persistent accent (replaces full border) */
+.accent-top-line {
+  position: relative;
+}
+.accent-top-line::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 12px;
+  right: 12px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(126, 87, 194, 0.45), transparent);
+  pointer-events: none;
+}
+.accent-top-line-gold::before {
+  background: linear-gradient(90deg, transparent, rgba(214, 184, 116, 0.45), transparent);
+}
+
+/* Eyebrow label (replaces Card title) */
+.eyebrow {
+  font-size: 10px;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--shadow-text-faint);
+}
+
+/* Section rhythm helpers */
+.zone-gap { margin-top: 2.5rem; margin-bottom: 2.5rem; }       /* 40px */
+.zone-gap-lg { margin-top: 3.5rem; margin-bottom: 3.5rem; }    /* 56px */
+
+@media (prefers-reduced-motion: reduce) {
+  .panel-ambient, .panel-ambient:hover {
+    transition: none;
+    transform: none;
+  }
+}
+
+/* ─── Breathing ambient dot ─────────────────────────────────────────── */
+@keyframes breathe {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50%      { opacity: 1;   transform: scale(1.3); }
+}
+.dot-breathe {
+  animation: breathe 3s ease-in-out infinite;
+  will-change: opacity, transform;
+}
+
+/* ─── Ritual modal ambient breath glow ──────────────────────────────── */
+@keyframes ritual-breath {
+  0%, 100% { opacity: 0.04; transform: scale(1); }
+  50%      { opacity: 0.08; transform: scale(1.15); }
+}
+.ritual-breath {
+  animation: ritual-breath 6s ease-in-out infinite;
+  will-change: opacity, transform;
+}
+
+/* ─── Shadow Core mandala animations ────────────────────────────────── */
+@keyframes shadow-core-breathe {
+  0%, 100% { opacity: 0.92; }
+  50%      { opacity: 1; }
+}
+.shadow-core-breathe {
+  animation: shadow-core-breathe 5s ease-in-out infinite;
+}
+
+/* Active area pulse ring */
+@keyframes area-pulse {
+  0%, 100% { opacity: 0.08; }
+  50%      { opacity: 0.18; }
+}
+.area-pulse {
+  animation: area-pulse 3s ease-in-out infinite;
+}
+
+/* ─── Direction orb calm breathing ──────────────────────────────────── */
+@keyframes dir-orb-breathe {
+  0%, 100% {
+    opacity: 0.65;
+    box-shadow: 0 0 28px rgba(201,163,106,0.04), inset 0 0 20px rgba(201,163,106,0.03);
+  }
+  50% {
+    opacity: 0.88;
+    box-shadow: 0 0 52px rgba(201,163,106,0.09), inset 0 0 32px rgba(201,163,106,0.06);
+  }
+}
+.dir-orb-breathe {
+  animation: dir-orb-breathe 7s ease-in-out infinite;
+  will-change: opacity, box-shadow;
+}
+
+/* Scrollbar hide utility */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* ─── Shadow Protocols — soft cell animations ───────────────────── */
+@keyframes cell-done-pulse {
+  0%, 100% { opacity: 0.85; box-shadow: 0 0 6px rgba(113, 179, 139, 0.2); }
+  50%      { opacity: 1;    box-shadow: 0 0 12px rgba(113, 179, 139, 0.35); }
+}
+@keyframes cell-failed-fade {
+  0%, 100% { opacity: 0.7; }
+  50%      { opacity: 0.45; }
+}
+@keyframes cell-recovered-glow {
+  0%, 100% { opacity: 0.8; box-shadow: 0 0 6px rgba(214, 184, 116, 0.18); }
+  50%      { opacity: 1;   box-shadow: 0 0 14px rgba(214, 184, 116, 0.32); }
+}
+@keyframes hud-toast-in {
+  0%   { opacity: 0; transform: translateY(-10px) scale(0.97); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes hud-toast-out {
+  0%   { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-6px) scale(0.98); }
+}
+
+.cell-done-anim      { animation: cell-done-pulse 3.5s ease-in-out infinite; }
+.cell-failed-anim    { animation: cell-failed-fade 2.8s ease-in-out infinite; }
+.cell-recovered-anim { animation: cell-recovered-glow 3.2s ease-in-out infinite; }
+.hud-toast-in       { animation: hud-toast-in 280ms cubic-bezier(.14,1,.34,1) both; }
+.hud-toast-out      { animation: hud-toast-out 200ms ease-in both; }
+
+/* ─── Ritual CTA button ─────────────────────────────────────────── */
+.ritual-cta {
+  transition: box-shadow 280ms ease, background 280ms ease, opacity 200ms ease;
+}
+.ritual-cta:hover:not(:disabled) {
+  box-shadow: var(--shadow-glow-gold);
+  background: rgba(214, 184, 116, 0.16) !important;
+}
+.ritual-cta:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+}
+
+/* ─── Sphere picker button ──────────────────────────────────────── */
+.sphere-btn {
+  transition: box-shadow 200ms ease, border-color 200ms ease, background 200ms ease;
+}
+.sphere-btn:hover {
+  box-shadow: 0 0 8px rgba(214, 184, 116, 0.08);
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Skeleton shimmer for loading states. */
+.skeleton {
+  background:
+    linear-gradient(
+      90deg,
+      var(--bg-elev2) 0%,
+      var(--bg-elev3) 50%,
+      var(--bg-elev2) 100%
+    );
+  background-size: 200px 100%;
+  background-repeat: no-repeat;
+  animation: shimmer 1.4s linear infinite;
+}
+
+/* Slim custom scrollbar in app shell. */
+@supports (scrollbar-width: thin) {
+  .scroll-thin {
+    scrollbar-width: thin;
+    scrollbar-color: var(--bg-elev3) transparent;
+  }
+}
+.scroll-thin::-webkit-scrollbar { width: 8px; height: 8px; }
+.scroll-thin::-webkit-scrollbar-track { background: transparent; }
+.scroll-thin::-webkit-scrollbar-thumb {
+  background: var(--bg-elev3);
+  border-radius: 4px;
+}
+.scroll-thin::-webkit-scrollbar-thumb:hover {
+  background: var(--text-subtle);
+}
+
+/* Visible focus ring across all interactive elements. */
+:focus-visible {
+  outline: 2px solid var(--accent-warm);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orb-pulse,
+  .anim-fade-in,
+  .anim-fade-up,
+  .anim-scale-in,
+  .anim-backdrop,
+  .anim-stagger > *,
+  .dot-breathe,
+  .ritual-breath,
+  .shadow-core-breathe,
+  .area-pulse,
+  .dir-orb-breathe,
+  .sonic-orb-breathe,
+  .skeleton,
+  .card-pop,
+  .area-card-overlay-breathe,
+  .area-card-floating,
+  .bar-grow,
+  .panel-reveal-1, .panel-reveal-2, .panel-reveal-3,
+  .panel-reveal-4, .panel-reveal-5, .panel-reveal-6 { animation: none !important; }
+  .card-hover { transition: none; }
+  .card-hover:hover { transform: none; box-shadow: none; }
+}
+
+/* ─── Sonic Mirror animations ───────────────────────────────────────────── */
+@keyframes sonic-wave {
+  0%   { height: 20%; opacity: 0.5; }
+  100% { height: 85%; opacity: 0.9; }
+}
+@keyframes sonic-orb-pulse {
+  0%, 100% {
+    opacity: 0.55;
+    box-shadow: 0 0 32px rgba(126,87,194,0.10), inset 0 0 16px rgba(126,87,194,0.04);
+  }
+  50% {
+    opacity: 0.80;
+    box-shadow: 0 0 56px rgba(126,87,194,0.18), inset 0 0 28px rgba(126,87,194,0.08);
+  }
+}
+.sonic-orb-breathe {
+  animation: sonic-orb-pulse 5s ease-in-out infinite;
+  will-change: opacity, box-shadow;
+}
+
+/* ─── Area gallery — per-area SVG looping animations ───────────────────── */
+@keyframes art-work-float {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-3px); }
+}
+@keyframes art-money-spin {
+  from { transform: rotate(0deg); transform-origin: 80px 58px; }
+  to   { transform: rotate(360deg); transform-origin: 80px 58px; }
+}
+@keyframes art-health-wave {
+  from { stroke-dashoffset: 0; }
+  to   { stroke-dashoffset: -160; }
+}
+@keyframes art-energy-pulse {
+  0%, 100% { opacity: 0.45; }
+  50%       { opacity: 1; }
+}
+@keyframes art-glow-breathe {
+  0%, 100% { opacity: 0.5; }
+  50%       { opacity: 1; }
+}
+@keyframes art-spin-slow {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+@keyframes art-nodes-pulse {
+  0%, 100% { r: 5; opacity: 0.60; }
+  50%       { r: 7; opacity: 0.90; }
+}
+@keyframes art-scale-breathe {
+  0%, 100% { transform: scale(1); }
+  50%       { transform: scale(1.06); }
+}
+
+/* Reduced motion: suppress SVG art animations */
+@media (prefers-reduced-motion: reduce) {
+  [style*="art-work-float"],
+  [style*="art-spin-slow"],
+  [style*="art-health-wave"],
+  [style*="art-energy-pulse"],
+  [style*="art-scale-breathe"] { animation: none !important; }
+}
+
+/* Area gallery — card pop + panel reveal ────────────────────────────── */
+@keyframes card-pop {
+  0%   { transform: translateY(0) scale(1); }
+  38%  { transform: translateY(-14px) scale(1.068); }
+  68%  { transform: translateY(-7px) scale(1.042); }
+  100% { transform: translateY(-8px) scale(1.05); }
+}
+.card-pop {
+  animation: card-pop 540ms cubic-bezier(.34,1.56,.64,1) forwards;
+}
+
+/* Area card — continuous float bob when selected (starts after expansion transition) */
+@keyframes area-float-bob {
+  0%, 100% { transform: translateY(-20px) scale(1.015); }
+  50%       { transform: translateY(-27px) scale(1.018); }
+}
+.area-card-floating {
+  animation: area-float-bob 3.5s ease-in-out infinite;
+}
+
+@keyframes area-card-overlay-breathe {
+  0%, 100% { opacity: 0.45; }
+  50%       { opacity: 1; }
+}
+.area-card-overlay-breathe {
+  animation: area-card-overlay-breathe 3.2s ease-in-out infinite;
+}
+
+@keyframes bar-grow {
+  from { transform-origin: left; transform: scaleX(0); }
+  to   { transform-origin: left; transform: scaleX(1); }
+}
+.bar-grow {
+  animation: bar-grow 660ms cubic-bezier(.14,1,.34,1) 310ms both;
+}
+
+.panel-reveal-1 { animation: fade-in-up 300ms cubic-bezier(.14,1,.34,1)  20ms both; }
+.panel-reveal-2 { animation: fade-in-up 300ms cubic-bezier(.14,1,.34,1)  90ms both; }
+.panel-reveal-3 { animation: fade-in-up 300ms cubic-bezier(.14,1,.34,1) 160ms both; }
+.panel-reveal-4 { animation: fade-in-up 300ms cubic-bezier(.14,1,.34,1) 230ms both; }
+.panel-reveal-5 { animation: fade-in-up 300ms cubic-bezier(.14,1,.34,1) 300ms both; }
+.panel-reveal-6 { animation: fade-in-up 300ms cubic-bezier(.14,1,.34,1) 370ms both; }
+
+/* ─── Shadow Core Atlas ──────────────────────────────────────────── */
+@keyframes atlas-particle {
+  0%, 100% { opacity: 0.22; transform: translateY(0) translateX(0) scale(1); }
+  33%       { opacity: 0.50; transform: translateY(-14px) translateX(6px) scale(1.2); }
+  66%       { opacity: 0.30; transform: translateY(-7px) translateX(-5px) scale(0.88); }
+}
+.atlas-particle {
+  animation: atlas-particle var(--dur, 9s) ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+  will-change: opacity, transform;
+}
+@keyframes atlas-beacon {
+  0%, 100% {
+    box-shadow: 0 0 0 0 var(--bc, rgba(201,163,106,0.45)),
+                0 0 5px var(--bc, rgba(201,163,106,0.25));
+  }
+  50% {
+    box-shadow: 0 0 0 5px transparent,
+                0 0 10px var(--bc, rgba(201,163,106,0.55));
+  }
+}
+.atlas-beacon {
+  animation: atlas-beacon 2.8s ease-in-out infinite;
+  will-change: box-shadow;
+}
+@media (prefers-reduced-motion: reduce) {
+  .atlas-particle, .atlas-beacon { animation: none !important; }
+}
+
+/* Manual reduce motion via settings. */
+[data-reduce-motion="true"] .orb-pulse,
+[data-reduce-motion="true"] .anim-fade-in,
+[data-reduce-motion="true"] .anim-fade-up,
+[data-reduce-motion="true"] .anim-scale-in,
+[data-reduce-motion="true"] .anim-stagger > *,
+[data-reduce-motion="true"] .dot-breathe,
+[data-reduce-motion="true"] .ritual-breath,
+[data-reduce-motion="true"] .shadow-core-breathe,
+[data-reduce-motion="true"] .area-pulse,
+[data-reduce-motion="true"] .dir-orb-breathe,
+[data-reduce-motion="true"] .sonic-orb-breathe,
+[data-reduce-motion="true"] .skeleton { animation: none !important; }
+[data-reduce-motion="true"] .card-hover { transition: none; }
+[data-reduce-motion="true"] .card-hover:hover { transform: none; box-shadow: none; }
+[data-reduce-motion="true"] .card-pop,
+[data-reduce-motion="true"] .area-card-overlay-breathe,
+[data-reduce-motion="true"] .bar-grow,
+[data-reduce-motion="true"] .panel-reveal-1,
+[data-reduce-motion="true"] .panel-reveal-2,
+[data-reduce-motion="true"] .panel-reveal-3,
+[data-reduce-motion="true"] .panel-reveal-4,
+[data-reduce-motion="true"] .panel-reveal-5,
+[data-reduce-motion="true"] .panel-reveal-6 { animation: none !important; }
