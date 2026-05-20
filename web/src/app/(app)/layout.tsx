@@ -4,6 +4,7 @@ import { UserPill } from "@/components/UserPill";
 import { ToastProvider } from "@/components/Toast";
 import { PageTransition } from "@/components/fx";
 import { OnboardingTour } from "@/components/onboarding/OnboardingTour";
+import { MemoryContract } from "@/components/onboarding/MemoryContract";
 
 export default async function AppLayout({
   children,
@@ -20,6 +21,7 @@ export default async function AppLayout({
           </div>
         </main>
         <ShadowOrb />
+        <MemoryContract />
         <OnboardingTour />
       </div>
     </ToastProvider>
