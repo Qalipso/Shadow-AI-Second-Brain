@@ -4,6 +4,8 @@ import { getCurrentUser } from "@/lib/auth";
 import { getRecentReports, getTodayReport } from "@/lib/data";
 import { ReportList } from "@/components/reports/ReportList";
 import { GenerateReportButton } from "@/components/reports/GenerateReportButton";
+import { InsightFeedback } from "@/components/reports/InsightFeedback";
+import { EmptyState } from "@/components/EmptyState";
 
 export const dynamic = "force-dynamic";
 
@@ -37,17 +39,14 @@ export default async function ReportsPage() {
               </span>
               <span>{todayReport.report_date}</span>
             </div>
+            {todayReport.id && <InsightFeedback reportId={todayReport.id} />}
           </div>
         </Card>
       ) : (
-        <Card>
-          <div className="text-center py-6">
-            <p className="text-zinc-500 text-sm">No report for today yet.</p>
-            <p className="text-zinc-600 text-[11px] mt-1">
-              Capture entries first, then generate your daily report.
-            </p>
-          </div>
-        </Card>
+        <EmptyState
+          headline="No report for today yet."
+          sub="Capture entries first, then generate your daily report."
+        />
       )}
 
       {reports.length > (todayReport ? 1 : 0) && (

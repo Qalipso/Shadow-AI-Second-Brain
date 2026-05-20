@@ -1,7 +1,7 @@
 import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/Card";
 import { getCurrentUser } from "@/lib/auth";
-import { getRecentReports, getTodayReport } from "@/lib/data";
+import { getRecentReports, getTodayReport, getUserEntries } from "@/lib/data";
 import { getMusicProfile } from "@/lib/music/data";
 import { ReportList } from "@/components/reports/ReportList";
 import { GenerateReportButton } from "@/components/reports/GenerateReportButton";
@@ -10,15 +10,17 @@ import { SonicMirrorModule } from "@/components/sonic/SonicMirrorModule";
 import { BlurFade } from "@/components/fx";
 import { WeeklyDigestCard } from "@/components/dashboard/WeeklyDigestCard";
 import { EmptyState } from "@/components/EmptyState";
+import { PatternSurface } from "@/components/insights/PatternSurface";
 
 export const dynamic = "force-dynamic";
 
 export default async function InsightsPage() {
   const user = await getCurrentUser();
-  const [todayReport, reports, musicProfile] = await Promise.all([
+  const [todayReport, reports, musicProfile, entries] = await Promise.all([
     user ? getTodayReport(user.id) : Promise.resolve(null),
     user ? getRecentReports(user.id) : Promise.resolve([]),
     user ? getMusicProfile(user.id) : Promise.resolve(null),
+    user ? getUserEntries(user.id, 60) : Promise.resolve([]),
   ]);
 
   return (
@@ -71,8 +73,17 @@ export default async function InsightsPage() {
 
       </BlurFade>
 
+      {entries.length >= 3 && (
+        <BlurFade delay={0.3}>
+          <div className="glow-line" />
+          <Card title="Signal Patterns">
+            <PatternSurface entries={entries} />
+          </Card>
+        </BlurFade>
+      )}
+
       {reports.length > (todayReport ? 1 : 0) && (
-        <BlurFade delay={0.25}>
+        <BlurFade delay={0.4}>
           <div className="glow-line" />
           <ReportList reports={reports.filter((r) => r.report_date !== todayReport?.report_date)} />
         </BlurFade>
