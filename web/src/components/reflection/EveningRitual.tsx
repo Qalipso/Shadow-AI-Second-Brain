@@ -224,7 +224,7 @@ export function EveningRitual() {
       <Modal onClose={closeModal}>
         <div className="flex items-center justify-between mb-4">
           <span className="text-[10px] uppercase tracking-[0.25em] text-zinc-500">Evening Ritual</span>
-          <button onClick={closeModal} className="text-zinc-600 hover:text-zinc-300 text-lg leading-none">×</button>
+          <button onClick={closeModal} aria-label="Close" className="text-zinc-600 hover:text-zinc-300 text-lg leading-none">×</button>
         </div>
         {saveError && (
           <p className="mb-3 text-[12px] text-red-400 rounded border border-red-800 bg-red-950/30 px-3 py-2">{saveError}</p>
@@ -246,7 +246,7 @@ export function EveningRitual() {
       <Modal onClose={closeModal}>
         <div className="flex items-center justify-between mb-4">
           <span className="text-[10px] uppercase tracking-[0.25em] text-zinc-500">Evening Ritual</span>
-          <button onClick={closeModal} className="text-zinc-600 hover:text-zinc-300 text-lg leading-none">×</button>
+          <button onClick={closeModal} aria-label="Close" className="text-zinc-600 hover:text-zinc-300 text-lg leading-none">×</button>
         </div>
         <div className="flex flex-col gap-6 py-4 text-center">
           <p className="font-[family-name:var(--font-fraunces)] text-2xl text-zinc-100 leading-snug">
@@ -293,7 +293,7 @@ export function EveningRitual() {
         <span className="text-[10px] uppercase tracking-[0.25em] text-zinc-500">Evening Ritual</span>
         <div className="flex items-center gap-3">
           <span className="text-[11px] text-zinc-600">{stepLabel}</span>
-          <button onClick={closeModal} className="text-zinc-600 hover:text-zinc-300 text-lg leading-none">×</button>
+          <button onClick={closeModal} aria-label="Close" className="text-zinc-600 hover:text-zinc-300 text-lg leading-none">×</button>
         </div>
       </div>
 
@@ -366,7 +366,8 @@ function Modal({ children, onClose }: { children: React.ReactNode; onClose: () =
     <div
       ref={overlayRef}
       onClick={handleOverlayClick}
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center backdrop-blur-md"
+      style={{ background: "rgba(6,5,14,0.72)" }}
     >
       <div className="w-full sm:max-w-[560px] max-h-[90dvh] overflow-y-auto rounded-t-2xl sm:rounded-2xl bg-zinc-950 border border-zinc-800 px-6 py-6 shadow-2xl">
         {children}

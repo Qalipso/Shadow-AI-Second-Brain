@@ -176,7 +176,7 @@ export function AiConversationCard() {
         </div>
       )}
 
-      <p className="text-[10px] text-zinc-700 mt-1.5">⌘↵ to send</p>
+      <p className="text-[10px] text-zinc-500 mt-1.5">⌘↵ to send</p>
     </div>
   );
 }

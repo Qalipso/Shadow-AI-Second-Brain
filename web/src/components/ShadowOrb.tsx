@@ -308,7 +308,8 @@ export function ShadowOrb({ notificationCount = 0 }: ShadowOrbProps) {
           <button
             aria-label="Close"
             onClick={() => setOpen(false)}
-            className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
+            className="fixed inset-0 z-40 backdrop-blur-sm"
+            style={{ background: "rgba(6,5,14,0.62)" }}
           />
           <div
             role="dialog"
@@ -356,7 +357,7 @@ export function ShadowOrb({ notificationCount = 0 }: ShadowOrbProps) {
                               {s.snippet}
                               {s.snippet.length >= 90 ? "…" : ""}
                             </p>
-                            <p className="text-[9px] text-zinc-700 mt-0.5">
+                            <p className="text-[9px] text-zinc-500 mt-0.5">
                               {new Date(s.created_at).toLocaleDateString(undefined, {
                                 month: "short",
                                 day: "numeric",
@@ -376,7 +377,7 @@ export function ShadowOrb({ notificationCount = 0 }: ShadowOrbProps) {
                           className={`rounded px-1.5 py-0.5 text-[12px] transition-colors ${
                             m.feedback === 1
                               ? "text-green-400"
-                              : "text-zinc-700 hover:text-zinc-400"
+                              : "text-zinc-500 hover:text-zinc-300"
                           }`}
                         >
                           ↑
@@ -388,7 +389,7 @@ export function ShadowOrb({ notificationCount = 0 }: ShadowOrbProps) {
                           className={`rounded px-1.5 py-0.5 text-[12px] transition-colors ${
                             m.feedback === -1
                               ? "text-red-400"
-                              : "text-zinc-700 hover:text-zinc-400"
+                              : "text-zinc-500 hover:text-zinc-300"
                           }`}
                         >
                           ↓

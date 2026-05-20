@@ -186,12 +186,17 @@ export function CreateGoalModal({ open, onClose, onCreated }: Props) {
     <>
       {/* Backdrop */}
       <div
-        className="anim-backdrop fixed inset-0 z-40 bg-black/70 backdrop-blur-sm"
+        aria-hidden="true"
+        className="anim-backdrop fixed inset-0 z-40 backdrop-blur-md"
+        style={{ background: "rgba(6,5,14,0.72)" }}
         onClick={onClose}
       />
 
       {/* Modal */}
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Create goal"
         className="anim-scale-in fixed inset-x-4 top-1/2 -translate-y-1/2 z-50 rounded-2xl max-h-[92vh] overflow-y-auto md:left-1/2 md:-translate-x-1/2 md:max-w-lg md:inset-x-auto scrollbar-hide"
         style={{
           background: "rgba(9, 8, 16, 0.98)",
@@ -389,7 +394,7 @@ export function CreateGoalModal({ open, onClose, onCreated }: Props) {
                   )}
                 </div>
                 {aiLoading && (
-                  <div className="flex gap-1 py-1">
+                  <div className="flex gap-1 py-1" role="status" aria-live="polite" aria-label="Shadow is analysing your goal">
                     {[0, 1, 2].map((i) => (
                       <div
                         key={i}

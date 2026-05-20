@@ -110,12 +110,17 @@ export function HabitDrawer({ habit, log, open, onClose, onSaved, date }: Props)
     <>
       {/* Backdrop */}
       <div
-        className="anim-backdrop fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
+        aria-hidden="true"
+        className="anim-backdrop fixed inset-0 z-40 backdrop-blur-sm"
+        style={{ background: "rgba(6,5,14,0.62)" }}
         onClick={onClose}
       />
 
       {/* Drawer */}
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Edit protocol"
         className="anim-fade-up fixed bottom-0 left-0 right-0 md:left-auto md:right-4 md:bottom-4 md:w-96 z-50 rounded-t-2xl md:rounded-2xl"
         style={{
           background: "rgba(14, 13, 22, 0.97)",

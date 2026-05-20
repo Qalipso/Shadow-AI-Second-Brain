@@ -74,7 +74,7 @@ function ResultCard({
         {result.emotion && (
           <span className="text-zinc-600">{result.emotion}</span>
         )}
-        <span className="text-zinc-700 ml-auto">{formatDate(result.created_at)}</span>
+        <span className="text-zinc-500 ml-auto">{formatDate(result.created_at)}</span>
 
         {onViewEntry && (
           <button
@@ -148,7 +148,7 @@ export function MemorySearch() {
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={onKeyDown}
             placeholder="energy, procrastination, money anxiety…"
-            className="w-full bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.08)] rounded-lg pl-8 pr-3 py-2 text-[13px] text-zinc-200 placeholder:text-zinc-700 outline-none focus:border-[rgba(201,163,106,0.3)] transition-colors"
+            className="w-full bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.08)] rounded-lg pl-8 pr-3 py-2 text-[13px] text-zinc-200 placeholder:text-zinc-500 outline-none focus:border-[rgba(201,163,106,0.3)] transition-colors"
             aria-label="Search memory"
           />
         </div>
@@ -189,13 +189,13 @@ export function MemorySearch() {
         results.length === 0 ? (
           <div className="text-center py-6 space-y-1">
             <p className="text-sm text-zinc-500">No matching memories found.</p>
-            <p className="text-[11px] text-zinc-700">
+            <p className="text-[11px] text-zinc-500">
               Try different words, or capture more entries to build your memory.
             </p>
           </div>
         ) : (
           <div className="space-y-2">
-            <p className="text-[10px] font-mono text-zinc-700 uppercase tracking-widest">
+            <p className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">
               {results.length} results · ranked by semantic similarity
             </p>
             {results.map((r) => (
@@ -207,7 +207,7 @@ export function MemorySearch() {
 
       {results === null && !loading && (
         <div className="text-center py-4">
-          <p className="text-[11px] text-zinc-700">
+          <p className="text-[11px] text-zinc-500">
             Shadow's memory is empty. Every thought you capture becomes a memory.{" "}
             <a href="/inbox" className="text-zinc-500 hover:text-zinc-300 underline transition-colors">
               Drop one into Inbox →
