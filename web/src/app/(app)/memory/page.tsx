@@ -4,9 +4,11 @@ import { getCurrentUser } from "@/lib/auth";
 import { getUserEntries, getLifeAreas } from "@/lib/data";
 import { getMusicProfile } from "@/lib/music/data";
 import { AskShadow } from "@/components/memory/AskShadow";
+import { MemorySearch } from "@/components/memory/MemorySearch";
 import { MemoryTimeline } from "@/components/memory/MemoryTimeline";
 import { MemoryItemsSection } from "@/components/memory/MemoryItemsSection";
 import { MusicProfileCard } from "@/components/sonic/MusicProfileCard";
+import { EmptyState } from "@/components/EmptyState";
 
 export const dynamic = "force-dynamic";
 
@@ -33,6 +35,10 @@ export default async function MemoryPage() {
         }
       />
 
+      <Card title="Search Memory">
+        <MemorySearch />
+      </Card>
+
       <Card title="Ask Shadow">
         <AskShadow />
       </Card>
@@ -50,14 +56,11 @@ export default async function MemoryPage() {
       <div className="glow-line" />
 
       {entries.length === 0 ? (
-        <Card>
-          <div className="text-center py-6">
-            <p className="text-zinc-500 text-sm">No memories yet.</p>
-            <p className="text-zinc-600 text-[11px] mt-1">
-              Capture entries in the Inbox to build your memory.
-            </p>
-          </div>
-        </Card>
+        <EmptyState
+          headline="Shadow's memory is empty."
+          sub="Every thought you capture becomes a memory."
+          cta={{ label: "Drop one into Inbox", href: "/inbox" }}
+        />
       ) : (
         <MemoryTimeline
           entries={entries}

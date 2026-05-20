@@ -1,0 +1,39 @@
+/*
+ * Shadow Design Tokens
+ * Semantic layer on top of globals.css palette.
+ * Reference these vars throughout components — never raw hex.
+ *
+ * Naming: --dt-<category>-<variant>
+ */
+
+:root {
+  /* ── Core voids ─────────────────────────────────────────────────── */
+  --dt-void:    #000000;          /* Shadow Core orb fill              */
+  --dt-deep:    #0a0a0a;          /* Page background (darkest)         */
+  --dt-surface: #111111;          /* Card / panel surfaces             */
+  --dt-pulse:   #2a2a2a;          /* Active state highlight            */
+
+  /* ── Signal / text ──────────────────────────────────────────────── */
+  --dt-signal:  #ffffff;          /* Primary text / high contrast      */
+  --dt-dim:     #666666;          /* Secondary / meta text             */
+  --dt-ghost:   #333333;          /* Disabled / uncalibrated fog       */
+
+  /* ── Accent (one, not many) ─────────────────────────────────────── */
+  --dt-accent:  #e8e8e8;          /* Near-white premium accent         */
+
+  /* ── Fog states (Life Circle calibration) ───────────────────────── */
+  --dt-fog-gradient: linear-gradient(135deg, #1a1a1a 0%, #0d0d0d 100%);
+  --dt-fog-border:   rgba(255, 255, 255, 0.04);
+  --dt-fog-text:     #3a3a3a;
+
+  /* ── Motion timing ──────────────────────────────────────────────── */
+  --dt-ease-out:     cubic-bezier(0.22, 1, 0.36, 1);
+  --dt-ease-spring:  cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dt-dur-fast:     150ms;
+  --dt-dur-base:     250ms;
+  --dt-dur-slow:     400ms;
+
+  /* ── Shadow Core sizing ─────────────────────────────────────────── */
+  --dt-core-min:  48px;
+  --dt-core-max:  80px;
+}

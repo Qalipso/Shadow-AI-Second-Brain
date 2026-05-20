@@ -1,8 +1,8 @@
 import { PageHeader } from "@/components/PageHeader";
-import { Card } from "@/components/Card";
 import { getLifeAreas, getLatestScores, getYesterdayScores, getTodayWheelScore } from "@/lib/data";
 import { getCurrentUser } from "@/lib/auth";
 import { AreasView } from "@/components/areas/AreasView";
+import { EmptyState } from "@/components/EmptyState";
 
 export const dynamic = "force-dynamic";
 
@@ -27,11 +27,10 @@ export default async function AreasPage() {
       />
 
       {areas.length === 0 ? (
-        <Card>
-          <p className="text-zinc-500">
-            No life areas loaded — apply seed migration.
-          </p>
-        </Card>
+        <EmptyState
+          headline="Life areas not loaded."
+          sub="Apply seed migration to populate your map."
+        />
       ) : (
         <>
           <div className="glow-line" />

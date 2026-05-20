@@ -58,6 +58,12 @@ export function ShadowCore({ areas, scoreMap, statMap, selectedId, onSelect }: P
   const [hoveredId, setHoveredId] = useState<number | null>(null);
   const [tooltip, setTooltip] = useState<Tooltip | null>(null);
 
+  // Core orb grows as more areas calibrated: 30% → 100% of INNER_R
+  const calibratedFraction = areas.length > 0
+    ? areas.filter((a) => scoreMap.has(a.id)).length / areas.length
+    : 0;
+  const coreDisplayR = Math.round(INNER_R * (0.3 + 0.7 * calibratedFraction));
+
   function trackMouse(e: React.MouseEvent, area: LifeArea, score: LifeAreaScore | undefined, stat: Stat) {
     if (!wrapRef.current) return;
     const r = wrapRef.current.getBoundingClientRect();
@@ -201,19 +207,20 @@ export function ShadowCore({ areas, scoreMap, statMap, selectedId, onSelect }: P
           })}
         </g>
 
-        {/* Center dark core */}
+        {/* Center dark core — size tracks calibration (30%→100% of INNER_R) */}
         <circle
-          cx={CX} cy={CY} r={INNER_R}
+          cx={CX} cy={CY} r={coreDisplayR}
           fill="url(#sc-core)"
           stroke="white"
           strokeOpacity={0.06}
           strokeWidth={0.6}
           className="shadow-core-breathe"
+          style={{ transition: "r 0.8s cubic-bezier(0.22,1,0.36,1)" }}
         />
 
         {/* Inner ring accent */}
         <circle
-          cx={CX} cy={CY} r={INNER_R - 4}
+          cx={CX} cy={CY} r={Math.max(4, coreDisplayR - 4)}
           fill="none"
           stroke="#C9A36A"
           strokeOpacity={0.08}

@@ -5,9 +5,11 @@ import { getRecentReports, getTodayReport } from "@/lib/data";
 import { getMusicProfile } from "@/lib/music/data";
 import { ReportList } from "@/components/reports/ReportList";
 import { GenerateReportButton } from "@/components/reports/GenerateReportButton";
+import { InsightFeedback } from "@/components/reports/InsightFeedback";
 import { SonicMirrorModule } from "@/components/sonic/SonicMirrorModule";
 import { BlurFade } from "@/components/fx";
 import { WeeklyDigestCard } from "@/components/dashboard/WeeklyDigestCard";
+import { EmptyState } from "@/components/EmptyState";
 
 export const dynamic = "force-dynamic";
 
@@ -54,17 +56,17 @@ export default async function InsightsPage() {
               <span>confidence: {((todayReport.confidence ?? 0) * 100).toFixed(0)}%</span>
               <span>{todayReport.report_date}</span>
             </div>
+            {todayReport.id && (
+              <InsightFeedback reportId={todayReport.id} />
+            )}
           </div>
         </Card>
       ) : (
-        <Card>
-          <div className="text-center py-6">
-            <p className="text-zinc-500 text-sm">No insight for today yet.</p>
-            <p className="text-zinc-600 text-[11px] mt-1">
-              Capture entries first, then generate your daily insight.
-            </p>
-          </div>
-        </Card>
+        <EmptyState
+          headline="No insight for today yet."
+          sub="Capture entries first, then generate your daily insight."
+          cta={{ label: "Generate insight", href: "#" }}
+        />
       )}
 
       </BlurFade>

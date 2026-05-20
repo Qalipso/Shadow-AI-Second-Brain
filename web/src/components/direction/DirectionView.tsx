@@ -8,6 +8,7 @@ import { GoalCard, MissionCard, TaskCard } from "./cards";
 import { GoalDetailDrawer } from "./GoalDetailDrawer";
 import { MissionDetailDrawer } from "./MissionDetailDrawer";
 import { TaskDetailDrawer } from "./TaskDetailDrawer";
+import { EmptyState } from "@/components/EmptyState";
 
 const TABS = ["Overview", "Goals", "Missions", "Tasks", "Blocked", "Done"] as const;
 type Tab = (typeof TABS)[number];
@@ -102,8 +103,19 @@ export function DirectionView() {
   function renderTab() {
     if (loading) {
       return (
-        <p className="py-12 text-center text-[12px] font-mono animate-pulse"
-          style={{ color: "var(--shadow-text-faint)" }}>Loading…</p>
+        <div className="space-y-3 py-2" aria-busy="true" aria-label="Loading direction data">
+          {[80, 60, 90, 55].map((w, i) => (
+            <div
+              key={i}
+              className="h-14 rounded-xl animate-pulse"
+              style={{
+                width: `${w}%`,
+                background: "rgba(255,255,255,0.04)",
+                border: "1px solid rgba(255,255,255,0.05)",
+              }}
+            />
+          ))}
+        </div>
       );
     }
 
@@ -353,8 +365,8 @@ function GoalsTab({
 
   if (active.length === 0) {
     return (
-      <div className="py-12 text-center space-y-3">
-        <p className="text-[12px] font-mono" style={{ color: "var(--shadow-text-faint)" }}>No active goals.</p>
+      <div className="flex flex-col items-center">
+        <EmptyState headline="No active goals." sub="Define what you're working toward." />
         <button
           onClick={onCreateGoal}
           className="px-4 py-2 rounded-lg text-[12px] font-mono"
@@ -398,9 +410,7 @@ function MissionsTab({
   const active = missions.filter((m) => m.status !== "completed" && m.status !== "abandoned");
   if (active.length === 0) {
     return (
-      <p className="py-12 text-center text-[12px] font-mono" style={{ color: "var(--shadow-text-faint)" }}>
-        No missions yet. Open a goal and add the first mission.
-      </p>
+      <EmptyState headline="No missions yet." sub="Open a goal and add the first mission." />
     );
   }
   return (
@@ -435,9 +445,7 @@ function TasksTab({
   const open = tasks.filter((t) => t.status === "open");
   if (open.length === 0) {
     return (
-      <p className="py-12 text-center text-[12px] font-mono" style={{ color: "var(--shadow-text-faint)" }}>
-        No open tasks. Open a goal or mission to add one.
-      </p>
+      <EmptyState headline="No open tasks." sub="Open a goal or mission to add one." />
     );
   }
   return (
@@ -470,9 +478,7 @@ function BlockedTab({
 
   if (blockedMissions.length === 0 && blockedTasks.length === 0) {
     return (
-      <p className="py-12 text-center text-[12px] font-mono" style={{ color: "var(--shadow-text-faint)" }}>
-        Nothing blocked. Capture blockers as you notice them.
-      </p>
+      <EmptyState headline="Nothing blocked." sub="Capture blockers as you notice them." />
     );
   }
   return (
@@ -524,9 +530,7 @@ function DoneTab({
 
   if (doneGoals.length === 0 && doneTasks.length === 0) {
     return (
-      <p className="py-12 text-center text-[12px] font-mono" style={{ color: "var(--shadow-text-faint)" }}>
-        Nothing completed yet.
-      </p>
+      <EmptyState headline="Nothing completed yet." sub="Finish a goal or task to see it here." />
     );
   }
   return (
