@@ -214,15 +214,23 @@ export function GoalDetailDrawer({
         )}
 
         {tab === "Plan" && (
-          <PlanTab missions={missions} tasks={tasks} goalId={goal.id} onRefresh={() => {
-            Promise.all([
-              fetch(`/api/missions?goal_id=${goal.id}`).then((r) => r.json()),
-              fetch(`/api/tasks?goal_id=${goal.id}`).then((r) => r.json()),
-            ]).then(([m, t]) => {
-              setMissions((m.missions ?? []) as Mission[]);
-              setTasks((t.tasks ?? []) as Task[]);
-            });
-          }} />
+          <PlanTab
+            missions={missions}
+            tasks={tasks}
+            goalId={goal.id}
+            goalTitle={save.draft.title}
+            goalWhy={save.draft.why}
+            goalProgress={save.draft.progress}
+            onRefresh={() => {
+              Promise.all([
+                fetch(`/api/missions?goal_id=${goal.id}`).then((r) => r.json()),
+                fetch(`/api/tasks?goal_id=${goal.id}`).then((r) => r.json()),
+              ]).then(([m, t]) => {
+                setMissions((m.missions ?? []) as Mission[]);
+                setTasks((t.tasks ?? []) as Task[]);
+              });
+            }}
+          />
         )}
 
         {tab === "Signals" && <SignalsTab goalTitle={save.draft.title} />}
@@ -266,52 +274,128 @@ export function GoalDetailDrawer({
 // ─── Plan tab ──────────────────────────────────────────────────────────────
 
 function PlanTab({
-  missions, tasks, goalId, onRefresh,
+  missions, tasks, goalId, goalTitle, goalWhy, goalProgress, onRefresh,
 }: {
   missions: Mission[];
   tasks: Task[];
   goalId: string;
+  goalTitle: string;
+  goalWhy: string;
+  goalProgress: number;
   onRefresh: () => void;
 }) {
+  // Inline add-mission state
+  const [mDraft, setMDraft] = useState("");
+  const [mSaving, setMSaving] = useState(false);
+  const [mError, setMError] = useState<string | null>(null);
+
+  // Inline add-task state
+  const [tDraft, setTDraft] = useState("");
+  const [tSaving, setTSaving] = useState(false);
+  const [tError, setTError] = useState<string | null>(null);
+
+  // Generate plan state
+  const [planLoading, setPlanLoading] = useState(false);
+  const [planText, setPlanText] = useState<string | null>(null);
+  const [planError, setPlanError] = useState<string | null>(null);
+
   const blockedTasks = tasks.filter((t) => t.status === "open" && !t.due_at);
   const nextMove = tasks.find((t) => t.status === "open") ?? null;
 
   async function addMission() {
-    const title = window.prompt("Mission title?");
+    const title = mDraft.trim();
     if (!title) return;
-    const res = await fetch("/api/missions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title, goal_id: goalId }),
-    });
-    if (res.ok) onRefresh();
+    setMSaving(true);
+    setMError(null);
+    try {
+      const res = await fetch("/api/missions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, goal_id: goalId }),
+      });
+      if (!res.ok) {
+        const d = await res.json() as { error?: string };
+        setMError(d.error ?? "Failed.");
+        return;
+      }
+      setMDraft("");
+      onRefresh();
+    } catch {
+      setMError("Network error.");
+    } finally {
+      setMSaving(false);
+    }
   }
+
   async function addTask() {
-    const title = window.prompt("Task title?");
+    const title = tDraft.trim();
     if (!title) return;
-    const res = await fetch("/api/tasks", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title, goal_id: goalId }),
-    });
-    if (res.ok) onRefresh();
+    setTSaving(true);
+    setTError(null);
+    try {
+      const res = await fetch("/api/tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, goal_id: goalId }),
+      });
+      if (!res.ok) {
+        const d = await res.json() as { error?: string };
+        setTError(d.error ?? "Failed.");
+        return;
+      }
+      setTDraft("");
+      onRefresh();
+    } catch {
+      setTError("Network error.");
+    } finally {
+      setTSaving(false);
+    }
+  }
+
+  async function generatePlan() {
+    setPlanLoading(true);
+    setPlanText(null);
+    setPlanError(null);
+    try {
+      const missionList = missions.length > 0
+        ? missions.map((m) => `• ${m.title} (${m.status})`).join("\n")
+        : "No missions yet.";
+      const openTasks = tasks.filter((t) => t.status === "open").slice(0, 5);
+      const taskList = openTasks.length > 0
+        ? openTasks.map((t) => `• ${t.title}`).join("\n")
+        : "";
+      const message = [
+        `Analyse this goal and outline a concrete action plan:`,
+        `Goal: "${goalTitle}"`,
+        goalWhy ? `Why: ${goalWhy}` : "",
+        `Missions:\n${missionList}`,
+        taskList ? `Open tasks:\n${taskList}` : "",
+        `Progress: ${goalProgress}%`,
+        `\nSuggest: next 3 concrete actions, biggest risk, and one clarifying question.`,
+      ].filter(Boolean).join("\n");
+
+      const res = await fetch("/api/shadow/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message, history: [] }),
+      });
+      const d = await res.json() as { reply?: string; error?: string };
+      if (!res.ok) {
+        setPlanError(d.error ?? "Analysis failed.");
+        return;
+      }
+      setPlanText(d.reply ?? "No analysis returned.");
+    } catch {
+      setPlanError("Network error.");
+    } finally {
+      setPlanLoading(false);
+    }
   }
 
   return (
     <div className="space-y-6">
-      <Section
-        title={`Missions · ${missions.length}`}
-        action={
-          <button
-            type="button"
-            onClick={addMission}
-            className="text-[10px] font-mono uppercase tracking-wider transition-all"
-            style={{ color: "var(--accent-warm)" }}
-          >
-            + Add Mission
-          </button>
-        }
-      >
+      {/* Missions section */}
+      <Section title={`Missions · ${missions.length}`}>
         {missions.length === 0 ? (
           <Empty text="No missions linked. Break the goal into one concrete mission." />
         ) : (
@@ -321,37 +405,41 @@ function PlanTab({
             ))}
           </ul>
         )}
-      </Section>
-
-      <Section
-        title={`Tasks · ${tasks.length}`}
-        action={
+        <div className="flex gap-1.5 mt-2">
+          <input
+            value={mDraft}
+            onChange={(e) => setMDraft(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter" && !mSaving) addMission(); }}
+            placeholder="New mission…"
+            disabled={mSaving}
+            className="flex-1 px-2.5 py-1.5 rounded text-[12px] outline-none"
+            style={{
+              background: "rgba(255,255,255,0.03)",
+              border: "1px solid var(--shadow-border)",
+              color: "var(--shadow-text)",
+            }}
+          />
           <button
             type="button"
-            onClick={addTask}
-            className="text-[10px] font-mono uppercase tracking-wider transition-all"
-            style={{ color: "var(--accent-warm)" }}
+            onClick={addMission}
+            disabled={!mDraft.trim() || mSaving}
+            className="px-2.5 py-1.5 rounded text-[11px] font-mono disabled:opacity-40 transition-all"
+            style={{
+              background: "rgba(201,163,106,0.08)",
+              border: "1px solid rgba(201,163,106,0.22)",
+              color: "var(--accent-warm)",
+            }}
           >
-            + Add Task
+            {mSaving ? "…" : "Add"}
           </button>
-        }
-      >
+        </div>
+        {mError && <p className="text-[10px] mt-1" style={{ color: "#E36161" }}>{mError}</p>}
+      </Section>
+
+      {/* Tasks section */}
+      <Section title={`Tasks · ${tasks.length}`}>
         {tasks.length === 0 ? (
-          <div className="space-y-2">
-            <Empty text="No tasks yet." />
-            <button
-              type="button"
-              onClick={addTask}
-              className="w-full py-2 rounded-md text-[11px] font-mono transition-all"
-              style={{
-                background: "rgba(201,163,106,0.08)",
-                border: "1px dashed rgba(201,163,106,0.24)",
-                color: "var(--accent-warm)",
-              }}
-            >
-              Create First Task
-            </button>
-          </div>
+          <Empty text="No tasks yet." />
         ) : (
           <ul className="space-y-1.5">
             {tasks.map((t) => (
@@ -359,6 +447,35 @@ function PlanTab({
             ))}
           </ul>
         )}
+        <div className="flex gap-1.5 mt-2">
+          <input
+            value={tDraft}
+            onChange={(e) => setTDraft(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter" && !tSaving) addTask(); }}
+            placeholder="New task…"
+            disabled={tSaving}
+            className="flex-1 px-2.5 py-1.5 rounded text-[12px] outline-none"
+            style={{
+              background: "rgba(255,255,255,0.03)",
+              border: "1px solid var(--shadow-border)",
+              color: "var(--shadow-text)",
+            }}
+          />
+          <button
+            type="button"
+            onClick={addTask}
+            disabled={!tDraft.trim() || tSaving}
+            className="px-2.5 py-1.5 rounded text-[11px] font-mono disabled:opacity-40 transition-all"
+            style={{
+              background: "rgba(201,163,106,0.08)",
+              border: "1px solid rgba(201,163,106,0.22)",
+              color: "var(--accent-warm)",
+            }}
+          >
+            {tSaving ? "…" : "Add"}
+          </button>
+        </div>
+        {tError && <p className="text-[10px] mt-1" style={{ color: "#E36161" }}>{tError}</p>}
       </Section>
 
       <Section title="Next Move">
@@ -383,17 +500,39 @@ function PlanTab({
         )}
       </Section>
 
-      <button
-        type="button"
-        className="w-full py-2.5 rounded-md text-[11px] font-mono transition-all"
-        style={{
-          background: "rgba(126,87,194,0.06)",
-          border: "1px solid rgba(126,87,194,0.2)",
-          color: "rgba(180,165,230,0.9)",
-        }}
-      >
-        Generate Plan with Shadow
-      </button>
+      {/* Generate Plan with Shadow */}
+      <div className="space-y-3">
+        <button
+          type="button"
+          onClick={generatePlan}
+          disabled={planLoading}
+          className="w-full py-2.5 rounded-md text-[11px] font-mono transition-all disabled:opacity-50"
+          style={{
+            background: "rgba(126,87,194,0.06)",
+            border: "1px solid rgba(126,87,194,0.2)",
+            color: "rgba(180,165,230,0.9)",
+          }}
+        >
+          {planLoading ? "Shadow is thinking…" : "Generate Plan with Shadow"}
+        </button>
+
+        {planError && (
+          <p className="text-[10px]" style={{ color: "#E36161" }}>{planError}</p>
+        )}
+
+        {planText && (
+          <div
+            className="rounded-md px-3 py-3 text-[12px] leading-relaxed whitespace-pre-wrap"
+            style={{
+              background: "rgba(126,87,194,0.05)",
+              border: "1px solid rgba(126,87,194,0.15)",
+              color: "var(--shadow-text-muted)",
+            }}
+          >
+            {planText}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

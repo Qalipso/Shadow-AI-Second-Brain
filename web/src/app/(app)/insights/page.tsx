@@ -66,8 +66,7 @@ export default async function InsightsPage() {
       ) : (
         <EmptyState
           headline="No insight for today yet."
-          sub="Capture entries first, then generate your daily insight."
-          cta={{ label: "Generate insight", href: "#" }}
+          sub="Shadow auto-generates from your captures. Use the button above, or add more check-ins first."
         />
       )}
 

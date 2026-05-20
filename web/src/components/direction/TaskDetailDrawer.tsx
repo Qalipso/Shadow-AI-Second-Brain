@@ -58,6 +58,10 @@ export function TaskDetailDrawer({
   onChanged?: (t: Task) => void;
 }) {
   const [tab, setTab] = useState<Tab>("Overview");
+  const [convertPending, setConvertPending] = useState(false);
+  const [converting, setConverting] = useState(false);
+  const [convertDone, setConvertDone] = useState(false);
+  const [convertError, setConvertError] = useState<string | null>(null);
 
   const initial: Editable = task ? toEditable(task) : toEditable({
     id: "", user_id: "", title: "", description: null, status: "open",
@@ -97,20 +101,35 @@ export function TaskDetailDrawer({
   const linkedMission = missions.find((m) => m.id === save.draft.mission_id) ?? null;
   const eyebrow = linkedMission ? `Task · ${linkedMission.title}` : linkedGoal ? `Task · ${linkedGoal.title}` : "Task";
 
-  async function quick(action: "done" | "today" | "block" | "split" | "convertMission") {
+  async function quick(action: "done" | "today" | "block") {
     if (action === "done") save.update("status", "done");
     if (action === "today") save.update("due_at", new Date().toISOString().slice(0, 10));
     if (action === "block") save.update("status", "dropped");
-    if (action === "split") window.alert("Split Task — coming soon.");
-    if (action === "convertMission") {
-      const ok = window.confirm("Convert this task into a Mission?");
-      if (!ok || !task) return;
+  }
+
+  async function runConvertMission() {
+    if (!task) return;
+    setConverting(true);
+    setConvertError(null);
+    try {
       const res = await fetch("/api/missions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title: save.draft.title, goal_id: save.draft.goal_id }),
       });
-      if (res.ok) window.alert("Mission created. Refresh Direction to see it.");
+      if (!res.ok) {
+        const d = await res.json() as { error?: string };
+        setConvertError(d.error ?? "Failed to create mission.");
+        setConvertPending(false);
+        return;
+      }
+      setConvertDone(true);
+      setConvertPending(false);
+    } catch {
+      setConvertError("Network error.");
+      setConvertPending(false);
+    } finally {
+      setConverting(false);
     }
   }
 
@@ -265,9 +284,65 @@ export function TaskDetailDrawer({
               <QuickActionBtn onClick={() => quick("done")} accent>Mark Done</QuickActionBtn>
               <QuickActionBtn onClick={() => quick("today")}>Move to Today</QuickActionBtn>
               <QuickActionBtn onClick={() => quick("block")}>Add Blocker</QuickActionBtn>
-              <QuickActionBtn onClick={() => quick("split")}>Split Task</QuickActionBtn>
-              <QuickActionBtn onClick={() => quick("convertMission")}>Convert to Mission</QuickActionBtn>
+
+              {/* Split — not yet implemented */}
+              <button
+                type="button"
+                disabled
+                title="Coming later"
+                className="px-3 py-1.5 rounded-md text-[10.5px] font-mono cursor-not-allowed"
+                style={{
+                  background: "rgba(255,255,255,0.02)",
+                  border: "1px solid var(--shadow-border)",
+                  color: "var(--shadow-text-faint)",
+                  opacity: 0.4,
+                }}
+              >
+                Split Task
+              </button>
+
+              {/* Convert to Mission — inline confirm flow */}
+              {convertDone ? (
+                <span
+                  className="text-[10.5px] font-mono"
+                  style={{ color: "var(--shadow-green, #6FBF8A)" }}
+                >
+                  Mission created — open Direction to see it
+                </span>
+              ) : convertPending ? (
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={runConvertMission}
+                    disabled={converting}
+                    className="px-3 py-1.5 rounded-md text-[10.5px] font-mono disabled:opacity-40 transition-all"
+                    style={{
+                      background: "rgba(111,191,138,0.10)",
+                      border: "1px solid rgba(111,191,138,0.28)",
+                      color: "var(--shadow-green, #6FBF8A)",
+                    }}
+                  >
+                    {converting ? "Converting…" : "Confirm"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setConvertPending(false); setConvertError(null); }}
+                    className="text-[10px] font-mono"
+                    style={{ color: "var(--shadow-text-faint)" }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <QuickActionBtn onClick={() => setConvertPending(true)}>
+                  Convert to Mission
+                </QuickActionBtn>
+              )}
             </div>
+
+            {convertError && (
+              <p className="text-[10px] mt-1" style={{ color: "#E36161" }}>{convertError}</p>
+            )}
           </>
         )}
 

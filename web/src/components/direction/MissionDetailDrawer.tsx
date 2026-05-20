@@ -54,6 +54,10 @@ export function MissionDetailDrawer({
 }) {
   const [tab, setTab] = useState<Tab>("Overview");
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [showAddTask, setShowAddTask] = useState(false);
+  const [taskDraft, setTaskDraft] = useState("");
+  const [taskSaving, setTaskSaving] = useState(false);
+  const [taskError, setTaskError] = useState<string | null>(null);
 
   const initial: Editable = mission ? toEditable(mission) : toEditable({
     id: "", user_id: "", goal_id: null, title: "", description: null,
@@ -97,26 +101,42 @@ export function MissionDetailDrawer({
   const statusLabel = MISSION_STATUSES.find((s) => s.value === save.draft.status)?.label;
   const linkedGoal = goals.find((g) => g.id === save.draft.goal_id) ?? null;
 
-  async function quickAction(action: "block" | "complete" | "split" | "addTask" | "link") {
+  function quickAction(action: "block" | "complete" | "addTask" | "link") {
     if (action === "block")    save.update("status", "blocked");
     if (action === "complete") save.update("status", "completed");
     if (action === "addTask") {
-      const t = window.prompt("Task title?");
-      if (!t || !mission) return;
+      setShowAddTask(true);
+      setTaskDraft("");
+      setTaskError(null);
+    }
+    if (action === "link") setTab("Overview");
+  }
+
+  async function submitAddTask() {
+    const title = taskDraft.trim();
+    if (!title || !mission) return;
+    setTaskSaving(true);
+    setTaskError(null);
+    try {
       const res = await fetch("/api/tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: t, mission_id: mission.id, goal_id: mission.goal_id }),
+        body: JSON.stringify({ title, mission_id: mission.id, goal_id: mission.goal_id }),
       });
-      if (res.ok) {
-        const { task } = await res.json() as { task: Task };
-        setTasks((s) => [task, ...s]);
+      if (!res.ok) {
+        const d = await res.json() as { error?: string };
+        setTaskError(d.error ?? "Failed to create task.");
+        return;
       }
+      const { task } = await res.json() as { task: Task };
+      setTasks((s) => [task, ...s]);
+      setTaskDraft("");
+      setShowAddTask(false);
+    } catch {
+      setTaskError("Network error.");
+    } finally {
+      setTaskSaving(false);
     }
-    if (action === "split") {
-      window.alert("Split into tasks — coming soon. Generate suggestions from this mission's outcome.");
-    }
-    if (action === "link") setTab("Overview");
   }
 
   return (
@@ -230,8 +250,68 @@ export function MissionDetailDrawer({
               <QuickActionBtn onClick={() => quickAction("addTask")}>Add Task</QuickActionBtn>
               <QuickActionBtn onClick={() => quickAction("block")}>Mark Blocked</QuickActionBtn>
               <QuickActionBtn onClick={() => quickAction("complete")} accent>Mark Completed</QuickActionBtn>
-              <QuickActionBtn onClick={() => quickAction("split")}>Split into Tasks</QuickActionBtn>
+              {/* Split — not yet implemented */}
+              <button
+                type="button"
+                disabled
+                title="Coming later"
+                className="px-3 py-1.5 rounded-md text-[10.5px] font-mono cursor-not-allowed"
+                style={{
+                  background: "rgba(255,255,255,0.02)",
+                  border: "1px solid var(--shadow-border)",
+                  color: "var(--shadow-text-faint)",
+                  opacity: 0.4,
+                }}
+              >
+                Split into Tasks
+              </button>
             </div>
+
+            {/* Inline add-task form */}
+            {showAddTask && (
+              <div className="space-y-1.5 pt-1">
+                <div className="flex gap-1.5">
+                  <input
+                    value={taskDraft}
+                    onChange={(e) => setTaskDraft(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter" && !taskSaving) submitAddTask(); }}
+                    placeholder="Task title…"
+                    autoFocus
+                    disabled={taskSaving}
+                    className="flex-1 px-2.5 py-1.5 rounded text-[12px] outline-none"
+                    style={{
+                      background: "rgba(255,255,255,0.03)",
+                      border: "1px solid var(--shadow-border)",
+                      color: "var(--shadow-text)",
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={submitAddTask}
+                    disabled={!taskDraft.trim() || taskSaving}
+                    className="px-2.5 py-1.5 rounded text-[11px] font-mono disabled:opacity-40 transition-all"
+                    style={{
+                      background: "rgba(201,163,106,0.08)",
+                      border: "1px solid rgba(201,163,106,0.22)",
+                      color: "var(--accent-warm)",
+                    }}
+                  >
+                    {taskSaving ? "…" : "Add"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setShowAddTask(false); setTaskDraft(""); setTaskError(null); }}
+                    className="px-2.5 py-1.5 rounded text-[11px] font-mono"
+                    style={{ color: "var(--shadow-text-faint)" }}
+                  >
+                    ✕
+                  </button>
+                </div>
+                {taskError && (
+                  <p className="text-[10px]" style={{ color: "#E36161" }}>{taskError}</p>
+                )}
+              </div>
+            )}
           </>
         )}
 
@@ -314,34 +394,41 @@ function QuickActionBtn({ children, onClick, accent }: { children: React.ReactNo
 function PlanTab({
   tasks, missionId, goalId, onRefresh,
 }: { tasks: Task[]; missionId: string; goalId: string | null; onRefresh: () => void }) {
+  const [draft, setDraft] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
   async function addTask() {
-    const t = window.prompt("Task title?");
-    if (!t) return;
-    const res = await fetch("/api/tasks", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: t, mission_id: missionId, goal_id: goalId }),
-    });
-    if (res.ok) onRefresh();
+    const title = draft.trim();
+    if (!title) return;
+    setSaving(true);
+    setErr(null);
+    try {
+      const res = await fetch("/api/tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, mission_id: missionId, goal_id: goalId }),
+      });
+      if (!res.ok) {
+        const d = await res.json() as { error?: string };
+        setErr(d.error ?? "Failed.");
+        return;
+      }
+      setDraft("");
+      onRefresh();
+    } catch {
+      setErr("Network error.");
+    } finally {
+      setSaving(false);
+    }
   }
+
   const open = tasks.filter((t) => t.status === "open");
   const next = open[0];
 
   return (
     <div className="space-y-5">
-      <Section
-        title={`Tasks · ${tasks.length}`}
-        action={
-          <button
-            type="button"
-            onClick={addTask}
-            className="text-[10px] font-mono uppercase tracking-wider"
-            style={{ color: "var(--accent-warm)" }}
-          >
-            + Add Task
-          </button>
-        }
-      >
+      <Section title={`Tasks · ${tasks.length}`}>
         {tasks.length === 0 ? (
           <p className="text-[11.5px] italic" style={{ color: "var(--shadow-text-faint)" }}>
             No tasks linked to this mission.
@@ -369,6 +456,37 @@ function PlanTab({
             ))}
           </ul>
         )}
+
+        {/* Inline add-task form */}
+        <div className="flex gap-1.5 mt-2">
+          <input
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter" && !saving) addTask(); }}
+            placeholder="New task…"
+            disabled={saving}
+            className="flex-1 px-2.5 py-1.5 rounded text-[12px] outline-none"
+            style={{
+              background: "rgba(255,255,255,0.03)",
+              border: "1px solid var(--shadow-border)",
+              color: "var(--shadow-text)",
+            }}
+          />
+          <button
+            type="button"
+            onClick={addTask}
+            disabled={!draft.trim() || saving}
+            className="px-2.5 py-1.5 rounded text-[11px] font-mono disabled:opacity-40 transition-all"
+            style={{
+              background: "rgba(201,163,106,0.08)",
+              border: "1px solid rgba(201,163,106,0.22)",
+              color: "var(--accent-warm)",
+            }}
+          >
+            {saving ? "…" : "Add"}
+          </button>
+        </div>
+        {err && <p className="text-[10px] mt-1" style={{ color: "#E36161" }}>{err}</p>}
       </Section>
 
       <Section title="Next Task">
