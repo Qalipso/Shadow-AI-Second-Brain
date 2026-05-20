@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect } from "react";
-import { Sparkles, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Sparkles, X, BookMarked, Check, Lightbulb } from "lucide-react";
 
 // Visible payload from POST /api/classify response.
 export type RevealPayload = {
+  entryId: string | null;
   summary: string | null;
   entryType: string | null;
   lifeAreaSlug: string | null;
@@ -39,20 +40,105 @@ const TYPE_LABEL: Record<string, string> = {
   food: "Food",
 };
 
-const AUTO_DISMISS_MS = 12_000;
+const AUTO_DISMISS_MS = 16_000;
+const FIRST_INSIGHT_KEY = "shadow:insights:first_done";
+
+type MemoryState = "idle" | "saving" | "saved" | "error";
+
+type InstantInsight = {
+  text: string;
+  follow_up: string;
+};
 
 export function ClassificationReveal({
   payload,
   onDismiss,
+  onMemorySaved,
 }: {
   payload: RevealPayload;
   onDismiss: () => void;
+  onMemorySaved?: () => void;
 }) {
-  // Auto-dismiss after a beat so the inbox doesn't pile up reveal cards.
+  const [memoryState, setMemoryState] = useState<MemoryState>("idle");
+  const [insight, setInsight] = useState<InstantInsight | null>(null);
+  const [insightLoading, setInsightLoading] = useState(false);
+
+  // Auto-dismiss after a beat. Pause while saving or after insight shown.
   useEffect(() => {
+    if (memoryState === "saving" || insight) return;
     const t = setTimeout(onDismiss, AUTO_DISMISS_MS);
     return () => clearTimeout(t);
-  }, [onDismiss]);
+  }, [onDismiss, memoryState, insight]);
+
+  async function saveToMemory() {
+    if (!payload.summary || memoryState !== "idle") return;
+    setMemoryState("saving");
+
+    try {
+      const res = await fetch("/api/memory/items", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          title: payload.summary.slice(0, 120),
+          content: payload.summary,
+          source_type: "inbox",
+          source_id: payload.entryId ?? undefined,
+          tags: payload.lifeAreaSlug ? [payload.lifeAreaSlug] : [],
+        }),
+      });
+
+      if (!res.ok) {
+        setMemoryState("error");
+        return;
+      }
+
+      setMemoryState("saved");
+      onMemorySaved?.();
+
+      // Generate instant insight for first-time saves only.
+      let isFirst = false;
+      try {
+        isFirst = !localStorage.getItem(FIRST_INSIGHT_KEY);
+      } catch {
+        // localStorage unavailable — skip
+      }
+
+      if (isFirst && payload.entryId && payload.summary) {
+        setInsightLoading(true);
+        try {
+          const ir = await fetch("/api/insights/instant", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              entry_id: payload.entryId,
+              summary: payload.summary,
+              life_area_slug: payload.lifeAreaSlug,
+              emotion: payload.emotion,
+            }),
+          });
+          if (ir.ok) {
+            const data = (await ir.json()) as {
+              insight?: { text: string; follow_up: string };
+            };
+            if (data.insight) {
+              setInsight(data.insight);
+              try {
+                localStorage.setItem(FIRST_INSIGHT_KEY, "1");
+              } catch {
+                // ignore
+              }
+            }
+          }
+        } catch {
+          // Insight failure is non-critical — don't show error
+        } finally {
+          setInsightLoading(false);
+        }
+      }
+    } catch {
+      setMemoryState("error");
+    }
+  }
 
   const areaLabel = payload.lifeAreaSlug
     ? AREA_LABEL[payload.lifeAreaSlug] ?? payload.lifeAreaSlug
@@ -91,13 +177,9 @@ export function ClassificationReveal({
             </p>
           ) : null}
 
-          <div className="flex flex-wrap gap-1.5">
-            {typeLabel ? (
-              <Pill kind="type">{typeLabel}</Pill>
-            ) : null}
-            {areaLabel ? (
-              <Pill kind="area">{areaLabel}</Pill>
-            ) : null}
+          <div className="flex flex-wrap gap-1.5 mb-3">
+            {typeLabel ? <Pill kind="type">{typeLabel}</Pill> : null}
+            {areaLabel ? <Pill kind="area">{areaLabel}</Pill> : null}
             {payload.emotion ? (
               <Pill kind="emotion">
                 {payload.emotion.primary}
@@ -108,6 +190,84 @@ export function ClassificationReveal({
               <Pill kind="task">→ {payload.extractedTask.title}</Pill>
             ) : null}
           </div>
+
+          {/* Memory action */}
+          {payload.summary ? (
+            <div className="flex items-center gap-2 mb-2">
+              {memoryState === "saved" ? (
+                <span
+                  className="inline-flex items-center gap-1 text-[11px]"
+                  style={{ color: "var(--accent-warm)" }}
+                >
+                  <Check size={11} />
+                  Saved to memory
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={saveToMemory}
+                  disabled={memoryState === "saving"}
+                  className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[11px] font-medium transition-opacity disabled:opacity-50"
+                  style={{
+                    background: "rgba(201,163,106,0.10)",
+                    border: "1px solid rgba(201,163,106,0.25)",
+                    color: "var(--accent-warm)",
+                  }}
+                >
+                  <BookMarked size={11} />
+                  {memoryState === "saving" ? "Saving…" : "Save to memory"}
+                </button>
+              )}
+              {memoryState === "error" ? (
+                <span className="text-[11px] text-red-400">Save failed — try again</span>
+              ) : null}
+            </div>
+          ) : null}
+
+          {/* Instant insight — shown after first memory save */}
+          {insightLoading ? (
+            <p
+              className="text-[11px] font-mono animate-pulse"
+              style={{ color: "var(--shadow-text-faint)" }}
+            >
+              Shadow is reflecting…
+            </p>
+          ) : null}
+
+          {insight ? (
+            <div
+              className="mt-3 rounded-lg px-3 py-2.5 anim-fade-up"
+              style={{
+                background: "rgba(255,255,255,0.03)",
+                border: "1px solid rgba(255,255,255,0.08)",
+              }}
+            >
+              <div className="flex items-start gap-2">
+                <Lightbulb
+                  size={12}
+                  className="mt-0.5 flex-shrink-0"
+                  style={{ color: "var(--accent-warm)" }}
+                  aria-hidden
+                />
+                <div>
+                  <p
+                    className="text-[10px] font-mono uppercase tracking-[0.18em] mb-1"
+                    style={{ color: "var(--accent-warm)" }}
+                  >
+                    First mirror
+                  </p>
+                  <p className="text-[12px] text-zinc-300 leading-relaxed mb-1.5">
+                    {insight.text}
+                  </p>
+                  {insight.follow_up ? (
+                    <p className="text-[11px] text-zinc-500 italic">
+                      {insight.follow_up}
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          ) : null}
         </div>
 
         <button

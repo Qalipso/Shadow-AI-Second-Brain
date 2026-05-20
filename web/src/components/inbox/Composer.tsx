@@ -11,6 +11,8 @@ import { Mic, MicOff, Sparkles } from "lucide-react";
 import { createLocalEntry } from "@/lib/entries/local";
 import type { InboxEntry } from "@/lib/entries/types";
 import { useVoice } from "@/lib/useVoice";
+import { useToast } from "@/components/Toast";
+import { track, EVENTS } from "@/lib/telemetry";
 import {
   ClassificationReveal,
   type RevealPayload,
@@ -38,11 +40,18 @@ function fitTextarea(el: HTMLTextAreaElement | null, max = 360) {
   el.style.height = `${Math.min(el.scrollHeight, max)}px`;
 }
 
+const AREA_DISPLAY: Record<string, string> = {
+  work: "Work", money: "Money", health: "Health", energy: "Energy",
+  food: "Food", mind: "Mind", creativity: "Creativity", social: "Social",
+  emotion: "Emotion", discipline: "Discipline", environment: "Environment", meaning: "Meaning",
+};
+
 export function Composer({
   onCreated,
 }: {
   onCreated?: (entry: InboxEntry) => void;
 }) {
+  const { toast } = useToast();
   const [text, setText] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -143,6 +152,7 @@ export function Composer({
     setReveal(null);
 
     startTransition(async () => {
+      track(EVENTS.CAPTURE_SUBMITTED, { length: trimmed.length });
       // Always write locally first for immediate UX continuity.
       const local = createLocalEntry(trimmed);
       onCreated?.(local);
@@ -187,6 +197,7 @@ export function Composer({
             const data = (await cls.json().catch(() => ({}))) as {
               error?: string;
             };
+            track(EVENTS.PARSE_FAILED, { status: cls.status });
             setError(
               `Classify ${cls.status}: ${data.error ?? "unknown error"}`,
             );
@@ -196,12 +207,25 @@ export function Composer({
             const c = data.classification;
             if (c) {
               setReveal({
+                entryId: dbEntryId,
                 summary: c.summary ?? null,
                 entryType: c.entry_type ?? null,
                 lifeAreaSlug: c.life_area_slug ?? null,
                 emotion: c.emotion ?? null,
                 extractedTask: c.extracted_task ?? null,
               });
+              track(EVENTS.PARSE_COMPLETED, {
+                entry_type: c.entry_type,
+                life_area: c.life_area_slug,
+                has_emotion: !!c.emotion,
+                has_task: !!c.extracted_task,
+              });
+              // Show Life Circle update toast when a life area was detected.
+              if (c.life_area_slug) {
+                track(EVENTS.LIFE_CIRCLE_UPDATED, { area: c.life_area_slug });
+                const area = AREA_DISPLAY[c.life_area_slug] ?? c.life_area_slug;
+                toast(`${area} map updated`, "info");
+              }
             }
             // Trigger any client list reading from local store to re-render.
             window.dispatchEvent(new CustomEvent("shadow:entries:changed"));
