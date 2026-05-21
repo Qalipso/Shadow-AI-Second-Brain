@@ -95,7 +95,7 @@ export function InterventionGrid() {
                   {EXAMPLE[type]}
                 </p>
                 <span className="text-[10px] uppercase tracking-[0.22em] text-[var(--shadow-gold)] opacity-80 group-hover:opacity-100">
-                  Создать →
+                  Create →
                 </span>
               </div>
             </div>
