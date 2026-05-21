@@ -25,9 +25,9 @@ type Editable = {
   goal_id: string | null;
   mission_id: string | null;
   linked_life_areas: string[];
-  notes: string;       // UI buffer
-  next_action: string; // UI buffer
-  blocker: string;     // UI buffer
+  notes: string;
+  next_action: string;
+  blocker: string;
 };
 
 function toEditable(t: Task): Editable {
@@ -41,9 +41,9 @@ function toEditable(t: Task): Editable {
     goal_id: t.goal_id ?? null,
     mission_id: t.mission_id ?? null,
     linked_life_areas: t.linked_life_areas ?? [],
-    notes: "",
-    next_action: "",
-    blocker: "",
+    notes: t.notes ?? "",
+    next_action: t.next_action ?? "",
+    blocker: t.blocker ?? "",
   };
 }
 
@@ -82,6 +82,9 @@ export function TaskDetailDrawer({
       goal_id: draft.goal_id,
       mission_id: draft.mission_id,
       linked_life_areas: draft.linked_life_areas,
+      notes: draft.notes || null,
+      next_action: draft.next_action || null,
+      blocker: draft.blocker || null,
     };
     const res = await fetch(`/api/tasks/${task.id}`, {
       method: "PATCH",
@@ -370,7 +373,7 @@ export function TaskDetailDrawer({
             value={save.draft.notes}
             onChange={(v) => save.update("notes", v)}
             rows={14}
-            placeholder="Task notes — buffered locally."
+            placeholder="Task notes."
           />
         )}
 

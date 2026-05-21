@@ -14,6 +14,9 @@ const UpdateTaskSchema = z.object({
   energy_cost: z.number().int().min(0).max(10).nullable().optional(),
   linked_life_areas: z.array(z.string()).optional(),
   due_at: z.string().nullable().optional(),
+  notes: z.string().max(50000).nullable().optional(),
+  next_action: z.string().max(500).nullable().optional(),
+  blocker: z.string().max(1000).nullable().optional(),
 });
 
 async function ownerCtx() {

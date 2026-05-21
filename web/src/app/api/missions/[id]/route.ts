@@ -12,6 +12,9 @@ const UpdateMissionSchema = z.object({
   progress: z.number().int().min(0).max(100).optional(),
   linked_life_areas: z.array(z.string()).optional(),
   blocker: z.string().max(1000).nullable().optional(),
+  outcome: z.string().max(2000).nullable().optional(),
+  deadline: z.string().nullable().optional(),
+  notes: z.string().max(50000).nullable().optional(),
 });
 
 async function ownerCtx() {

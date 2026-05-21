@@ -43,7 +43,7 @@ function toEditable(g: Goal): Editable {
     linked_life_areas: g.linked_life_areas ?? [],
     clarity_score: g.clarity_score,
     energy_score: g.energy_score,
-    notes: "", // not yet persisted to DB — UI-only buffer
+    notes: g.notes ?? "",
   };
 }
 
@@ -79,6 +79,7 @@ export function GoalDetailDrawer({
       linked_life_areas: draft.linked_life_areas,
       clarity_score: draft.clarity_score,
       energy_score: draft.energy_score,
+      notes: draft.notes || null,
     };
     const res = await fetch(`/api/goals/${goal.id}`, {
       method: "PATCH",
@@ -241,7 +242,7 @@ export function GoalDetailDrawer({
             value={save.draft.notes}
             onChange={(v) => save.update("notes", v)}
             rows={14}
-            placeholder="Free thinking space. (Buffered locally — persistence comes with next migration.)"
+            placeholder="Free thinking space."
           />
         )}
 

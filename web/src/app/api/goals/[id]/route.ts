@@ -15,6 +15,7 @@ const UpdateGoalSchema = z.object({
   deadline: z.string().nullable().optional(),
   clarity_score: z.number().int().min(0).max(10).nullable().optional(),
   energy_score: z.number().int().min(0).max(10).nullable().optional(),
+  notes: z.string().max(50000).nullable().optional(),
 });
 
 async function getOwnedGoal(id: string) {

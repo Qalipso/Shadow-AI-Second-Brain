@@ -275,6 +275,7 @@ export const GoalSchema = z.object({
   status: GoalStatusSchema.default("active"),
   life_area_id: z.number().nullable(),
   deadline: z.string().nullable(),
+  notes: z.string().nullable().optional(),
   created_at: z.string(),
   updated_at: z.string().optional(),
 });
@@ -293,6 +294,9 @@ export const MissionSchema = z.object({
   progress: z.number().int().min(0).max(100).default(0),
   linked_life_areas: z.array(z.string()).default([]),
   blocker: z.string().nullable(),
+  outcome: z.string().nullable().optional(),
+  deadline: z.string().nullable().optional(),
+  notes: z.string().nullable().optional(),
   created_at: z.string(),
   updated_at: z.string().optional(),
 });
@@ -318,6 +322,9 @@ export const TaskSchema = z.object({
   linked_life_areas: z.array(z.string()).default([]),
   created_from_inbox: z.boolean().default(false),
   due_at: z.string().nullable(),
+  notes: z.string().nullable().optional(),
+  next_action: z.string().nullable().optional(),
+  blocker: z.string().nullable().optional(),
   created_at: z.string(),
   updated_at: z.string().optional(),
 });

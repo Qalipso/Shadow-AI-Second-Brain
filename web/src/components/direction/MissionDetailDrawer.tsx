@@ -23,9 +23,9 @@ type Editable = {
   goal_id: string | null;
   linked_life_areas: string[];
   blocker: string;
-  outcome: string;     // UI buffer until DB column exists
-  deadline: string;    // UI buffer until DB column exists
-  notes: string;       // UI buffer
+  outcome: string;
+  deadline: string;
+  notes: string;
 };
 
 function toEditable(m: Mission): Editable {
@@ -37,9 +37,9 @@ function toEditable(m: Mission): Editable {
     goal_id: m.goal_id ?? null,
     linked_life_areas: m.linked_life_areas ?? [],
     blocker: m.blocker ?? "",
-    outcome: "",
-    deadline: "",
-    notes: "",
+    outcome: m.outcome ?? "",
+    deadline: m.deadline ?? "",
+    notes: m.notes ?? "",
   };
 }
 
@@ -75,6 +75,9 @@ export function MissionDetailDrawer({
       goal_id: draft.goal_id,
       linked_life_areas: draft.linked_life_areas,
       blocker: draft.blocker || null,
+      outcome: draft.outcome || null,
+      deadline: draft.deadline || null,
+      notes: draft.notes || null,
     };
     const res = await fetch(`/api/missions/${mission.id}`, {
       method: "PATCH",
@@ -333,7 +336,7 @@ export function MissionDetailDrawer({
             value={save.draft.notes}
             onChange={(v) => save.update("notes", v)}
             rows={14}
-            placeholder="Mission notes — buffered locally."
+            placeholder="Mission notes."
           />
         )}
 
