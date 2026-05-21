@@ -65,6 +65,7 @@ export function ToolPanel({ type }: { type: InterventionType }) {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<GeneratedResult | null>(null);
   const [interventionId, setInterventionId] = useState<string | null>(idFromUrl);
+  const [memorySaved, setMemorySaved] = useState(false);
   const [status, setStatus] = useState<
     "draft" | "active" | "completed" | "archived" | "dismissed"
   >("draft");
@@ -179,11 +180,16 @@ export function ToolPanel({ type }: { type: InterventionType }) {
       };
       setResult(data.result);
       setInterventionId(data.intervention.id);
+      setMemorySaved(false);
       setStatus("draft");
       router.replace(`/interventions/${meta.slug}?id=${data.intervention.id}`, {
         scroll: false,
       });
       router.refresh();
+      // Auto-save pattern to memory (fire-and-forget)
+      fetch(`/api/interventions/${data.intervention.id}/save-memory`, { method: "POST" })
+        .then(() => setMemorySaved(true))
+        .catch(() => {});
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -378,6 +384,7 @@ export function ToolPanel({ type }: { type: InterventionType }) {
           inputSummary={summary}
           result={result}
           initialStatus={status}
+          initialSavedMemory={memorySaved}
           onRegenerate={() => generate(true)}
           onStatusChange={(s) => setStatus(s)}
           regenerating={regen}

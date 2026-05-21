@@ -52,6 +52,7 @@ type Props = {
   inputSummary: string;
   result: GeneratedResult;
   initialStatus?: Status;
+  initialSavedMemory?: boolean;
   onRegenerate: () => void;
   onStatusChange?: (s: Status) => void;
   regenerating?: boolean;
@@ -204,13 +205,19 @@ export function ResultCard({
   inputSummary,
   result,
   initialStatus = "draft",
+  initialSavedMemory = false,
   onRegenerate,
   onStatusChange,
   regenerating,
 }: Props) {
   const router = useRouter();
   const [status, setStatus] = useState<Status>(initialStatus);
-  const [savedMemory, setSavedMemory] = useState(false);
+  const [savedMemory, setSavedMemory] = useState(initialSavedMemory);
+
+  // Sync when parent auto-saves memory asynchronously after generation
+  useEffect(() => {
+    if (initialSavedMemory) setSavedMemory(true);
+  }, [initialSavedMemory]);
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
