@@ -50,22 +50,6 @@ export default async function QuestionsPage() {
             <QuestionBank questions={questions} />
           </Card>
 
-          <Card title="Future settings">
-            <ul className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px] text-zinc-500">
-              <li className="rounded-md border border-dashed border-[var(--border)] px-3 py-2">
-                Random 5 per day
-              </li>
-              <li className="rounded-md border border-dashed border-[var(--border)] px-3 py-2">
-                Same core questions daily
-              </li>
-              <li className="rounded-md border border-dashed border-[var(--border)] px-3 py-2">
-                Fixed + random mix
-              </li>
-            </ul>
-            <p className="text-[10px] text-zinc-600 mt-2">
-              Coming soon. Persisted in Settings.
-            </p>
-          </Card>
         </>
       )}
     </div>

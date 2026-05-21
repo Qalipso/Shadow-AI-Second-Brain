@@ -170,6 +170,7 @@ export const HabitSchema = z.object({
   reminder_enabled: z.boolean(),
   reminder_time: z.string().nullable(),
   is_active: z.boolean(),
+  notes: z.string().nullable().optional(),
   strength_score: z.number().min(0).max(100),
   streak_current: z.number().int(),
   streak_best: z.number().int(),

@@ -26,6 +26,7 @@ const UpdateHabitInputSchema = z.object({
   reminder_enabled: z.boolean().optional(),
   reminder_time: z.string().nullable().optional(),
   is_active: z.boolean().optional(),
+  notes: z.string().max(50000).nullable().optional(),
 });
 
 // ─── PATCH /api/habits/[id] ─────────────────────────────────────────────────

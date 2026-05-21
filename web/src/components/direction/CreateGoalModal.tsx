@@ -41,13 +41,31 @@ interface AiSuggestions {
   firstTask: string;
 }
 
-function generateSuggestions(title: string): AiSuggestions {
-  return {
-    refinedTitle: title,
-    suggestedAreas: ["health", "discipline"],
-    firstMission: `Map current baseline and define success criteria for: ${title}`,
-    firstTask: "Write a one-paragraph definition of what 'done' looks like",
-  };
+const VALID_AREAS = [
+  "health", "sleep", "energy", "money", "career", "learning",
+  "creativity", "relationships", "discipline", "emotions", "home", "meaning",
+];
+
+function parseAiSuggestions(reply: string, fallbackTitle: string): AiSuggestions {
+  try {
+    const jsonMatch = reply.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]) as Partial<AiSuggestions>;
+      return {
+        refinedTitle: typeof parsed.refinedTitle === "string" && parsed.refinedTitle.trim()
+          ? parsed.refinedTitle.trim()
+          : fallbackTitle,
+        suggestedAreas: Array.isArray(parsed.suggestedAreas)
+          ? parsed.suggestedAreas.filter((a): a is string => VALID_AREAS.includes(a as string))
+          : [],
+        firstMission: typeof parsed.firstMission === "string" ? parsed.firstMission : "",
+        firstTask: typeof parsed.firstTask === "string" ? parsed.firstTask : "",
+      };
+    }
+  } catch {
+    // fall through to defaults
+  }
+  return { refinedTitle: fallbackTitle, suggestedAreas: [], firstMission: "", firstTask: "" };
 }
 
 // ─── Level picker ─────────────────────────────────────────────────────────────
@@ -127,9 +145,35 @@ export function CreateGoalModal({ open, onClose, onCreated }: Props) {
     if (!title.trim()) return;
     setAiLoading(true);
     setAiSuggestions(null);
-    await new Promise((r) => setTimeout(r, 1200));
-    setAiSuggestions(generateSuggestions(title.trim()));
-    setAiLoading(false);
+    try {
+      const prompt = [
+        `Analyse this goal and reply ONLY with a JSON object (no markdown, no explanation):`,
+        `Goal: "${title.trim()}"`,
+        why.trim() ? `Why: ${why.trim()}` : "",
+        ``,
+        `JSON schema:`,
+        `{`,
+        `  "refinedTitle": "clearer version of the goal title (string)",`,
+        `  "suggestedAreas": ["up to 3 from: health, sleep, energy, money, career, learning, creativity, relationships, discipline, emotions, home, meaning"],`,
+        `  "firstMission": "first concrete milestone to reach (string)",`,
+        `  "firstTask": "single physical action to start today (string)"`,
+        `}`,
+      ].filter(Boolean).join("\n");
+
+      const res = await fetch("/api/shadow/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: prompt, history: [] }),
+      });
+      const d = await res.json() as { reply?: string; error?: string };
+      if (!res.ok || !d.reply) throw new Error(d.error ?? "No response.");
+      setAiSuggestions(parseAiSuggestions(d.reply, title.trim()));
+    } catch {
+      // fallback: show empty suggestions panel so user isn't blocked
+      setAiSuggestions({ refinedTitle: title.trim(), suggestedAreas: [], firstMission: "", firstTask: "" });
+    } finally {
+      setAiLoading(false);
+    }
   }
 
   function applyAreaSuggestion(area: string) {
@@ -426,14 +470,18 @@ export function CreateGoalModal({ open, onClose, onCreated }: Props) {
                         ))}
                       </span>
                     </div>
-                    <div>
-                      <span style={{ color: "var(--shadow-text-faint)" }}>First mission: </span>
-                      <span style={{ color: "var(--shadow-text-muted)" }}>{aiSuggestions.firstMission}</span>
-                    </div>
-                    <div>
-                      <span style={{ color: "var(--shadow-text-faint)" }}>First task: </span>
-                      <span style={{ color: "var(--shadow-text-muted)" }}>{aiSuggestions.firstTask}</span>
-                    </div>
+                    {aiSuggestions.firstMission && (
+                      <div>
+                        <span style={{ color: "var(--shadow-text-faint)" }}>First mission: </span>
+                        <span style={{ color: "var(--shadow-text-muted)" }}>{aiSuggestions.firstMission}</span>
+                      </div>
+                    )}
+                    {aiSuggestions.firstTask && (
+                      <div>
+                        <span style={{ color: "var(--shadow-text-faint)" }}>First task: </span>
+                        <span style={{ color: "var(--shadow-text-muted)" }}>{aiSuggestions.firstTask}</span>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

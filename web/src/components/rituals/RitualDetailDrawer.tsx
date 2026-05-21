@@ -30,10 +30,10 @@ type Editable = {
   minimum_version: string;
   ideal_version: string;
   sphere_slugs: string[];
-  // local-only buffers (no DB column yet)
+  // local-only buffers (no DB column)
   steps: string;
-  notes: string;
   emotional_tone: string;
+  notes: string;
 };
 
 function toEditable(h: Habit): Editable {
@@ -49,8 +49,8 @@ function toEditable(h: Habit): Editable {
     ideal_version: h.ideal_version ?? "",
     sphere_slugs: h.sphere_slugs ?? [],
     steps: "",
-    notes: "",
     emotional_tone: "",
+    notes: h.notes ?? "",
   };
 }
 
@@ -92,6 +92,7 @@ export function RitualDetailDrawer({
       is_active: draft.is_active,
       reminder_time: reminder,
       reminder_enabled: !!reminder,
+      notes: draft.notes || null,
     };
     const res = await fetch(`/api/habits/${habit.id}`, {
       method: "PATCH",
@@ -240,7 +241,7 @@ export function RitualDetailDrawer({
             value={save.draft.notes}
             onChange={(v) => save.update("notes", v)}
             rows={14}
-            placeholder="Ritual reflections — buffered locally."
+            placeholder="Ritual reflections and context."
           />
         )}
 
