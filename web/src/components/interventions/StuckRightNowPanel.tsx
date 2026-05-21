@@ -1,10 +1,10 @@
 import Link from "next/link";
 
 const BUTTONS = [
-  { href: "/interventions/shatter", label: "Shatter a Task" },
-  { href: "/interventions/menu", label: "Build Dopamine Menu" },
-  { href: "/interventions/switch", label: "Switch Context" },
-  { href: "/interventions/filter", label: "Questify Boring Work" },
+  { href: "/interventions/shatter?new=1", label: "Shatter a Task" },
+  { href: "/interventions/menu?new=1",    label: "Build Dopamine Menu" },
+  { href: "/interventions/switch?new=1",  label: "Switch Context" },
+  { href: "/interventions/filter?new=1",  label: "Questify Boring Work" },
 ];
 
 export function StuckRightNowPanel() {

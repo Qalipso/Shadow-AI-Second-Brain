@@ -1,16 +1,16 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import {
-  type InterventionType,
-  TOOL_LABELS,
-} from "./types";
+import { type InterventionType, TOOL_LABELS } from "./types";
 import { useInterventionState } from "./stateStore";
 import { StateInputPanel } from "./StateInputPanel";
-import { ResultCard, type GeneratedResult } from "./ResultCard";
 import { ShadowLoader } from "./ShadowLoader";
-import { VariantSwitcher } from "./VariantSwitcher";
+import { ResultView, collectSteps, firstActionOf, type GeneratedResult, type Status } from "./results/ResultView";
+import { StatusActions } from "./results/StatusActions";
+import { MemoryActions } from "./results/MemoryActions";
+import { ConversionActions } from "./results/ConversionActions";
+import { BorderBeam, ShimmerButton } from "@/components/fx";
 
 type FormState = {
   task: string;
@@ -57,7 +57,10 @@ export function ToolPanel({ type }: { type: InterventionType }) {
   const params = useSearchParams();
   const idFromUrl = params.get("id");
   const isNew = params.get("new") === "1";
+  const isFork = params.get("fork") === "1";
+  const isReplace = params.get("replace") === "1";
   const meta = TOOL_LABELS[type];
+
   const { state } = useInterventionState();
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [loading, setLoading] = useState(false);
@@ -65,49 +68,52 @@ export function ToolPanel({ type }: { type: InterventionType }) {
   const [hydrating, setHydrating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<GeneratedResult | null>(null);
-  const [interventionId, setInterventionId] = useState<string | null>(idFromUrl);
-  const [memorySaved, setMemorySaved] = useState(false);
-  const [status, setStatus] = useState<
-    "draft" | "active" | "completed" | "archived" | "dismissed"
-  >("draft");
-  const skipNextHydrate = useRef(false);
+  const [interventionId, setInterventionId] = useState<string | null>(null);
+  const [replacingId, setReplacingId] = useState<string | null>(null);
+  const [savedMemory, setSavedMemory] = useState(false);
+  const [status, setStatus] = useState<Status>("draft");
+  const [msg, setMsg] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
-  // Hydrate from URL ?id= or latest draft for this type.
-  // Skip entirely when ?new=1 (fresh create from grid).
+  // Hydrate from URL ?id= — also handles ?fork=1 and ?replace=1 (pre-fill form only)
   useEffect(() => {
-    if (skipNextHydrate.current) {
-      skipNextHydrate.current = false;
-      return;
-    }
-    // ?new=1: clean param from URL and start blank — do not load any existing draft
+    // ?new=1 and no id: clean URL, stay blank
     if (isNew && !idFromUrl) {
       router.replace(`/interventions/${meta.slug}`, { scroll: false });
       return;
     }
+    if (!idFromUrl) return;
+
     let cancelled = false;
     async function hydrate() {
       setHydrating(true);
       try {
-        if (idFromUrl) {
-          const r = await fetch(`/api/interventions/${idFromUrl}`);
-          if (!r.ok) return;
-          const j = (await r.json()) as { intervention: { id: string; type: InterventionType; user_input: Record<string, unknown>; result_json: unknown; status: typeof status } };
-          if (cancelled || j.intervention.type !== type) return;
-          setForm(inputToForm(type, j.intervention.user_input));
+        const r = await fetch(`/api/interventions/${idFromUrl}`);
+        if (!r.ok) return;
+        const j = (await r.json()) as {
+          intervention: {
+            id: string;
+            type: InterventionType;
+            user_input: Record<string, unknown>;
+            result_json: unknown;
+            status: Status;
+            saved_to_memory: boolean;
+          };
+        };
+        if (cancelled || j.intervention.type !== type) return;
+        setForm(inputToForm(type, j.intervention.user_input));
+
+        if (isFork || isReplace) {
+          // Fork/replace: pre-fill form but do NOT load result — user regenerates fresh
+          if (isReplace) setReplacingId(j.intervention.id);
+          // Clean the flag params from URL (keep id for reference until generate)
+          router.replace(`/interventions/${meta.slug}?id=${idFromUrl}`, { scroll: false });
+        } else {
+          // Normal load: show existing result
           setResult(j.intervention.result_json as GeneratedResult);
           setInterventionId(j.intervention.id);
           setStatus(j.intervention.status);
-        } else {
-          // latest draft for this type
-          const r = await fetch(`/api/interventions?type=${type}&limit=1`);
-          if (!r.ok) return;
-          const j = (await r.json()) as { items: Array<{ id: string; user_input: Record<string, unknown>; result_json: unknown; status: typeof status }> };
-          const latest = j.items?.[0];
-          if (cancelled || !latest) return;
-          setForm(inputToForm(type, latest.user_input));
-          setResult(latest.result_json as GeneratedResult);
-          setInterventionId(latest.id);
-          setStatus(latest.status);
+          setSavedMemory(j.intervention.saved_to_memory);
         }
       } catch {
         /* ignore */
@@ -116,10 +122,9 @@ export function ToolPanel({ type }: { type: InterventionType }) {
       }
     }
     hydrate();
-    return () => {
-      cancelled = true;
-    };
-  }, [idFromUrl, isNew, type, meta.slug, router]);
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [idFromUrl, isNew, isFork, isReplace, type]);
 
   const update = (k: keyof FormState, v: string) =>
     setForm((p) => ({ ...p, [k]: v }));
@@ -157,13 +162,9 @@ export function ToolPanel({ type }: { type: InterventionType }) {
 
   const generate = async (isRegen = false) => {
     const err = validate();
-    if (err) {
-      setError(err);
-      return;
-    }
+    if (err) { setError(err); return; }
     setError(null);
-    if (isRegen) setRegen(true);
-    else setLoading(true);
+    if (isRegen) setRegen(true); else setLoading(true);
 
     try {
       const res = await fetch("/api/interventions/generate", {
@@ -181,22 +182,25 @@ export function ToolPanel({ type }: { type: InterventionType }) {
         const j = (await res.json().catch(() => ({}))) as { error?: string };
         throw new Error(j.error || `Request failed (${res.status})`);
       }
-      const data = (await res.json()) as {
-        intervention: { id: string };
-        result: GeneratedResult;
-      };
+      const data = (await res.json()) as { intervention: { id: string }; result: GeneratedResult };
+
+      // If replacing an existing intervention, archive the old one
+      if (replacingId) {
+        fetch(`/api/interventions/${replacingId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: "archived" }),
+        }).catch(() => {});
+        setReplacingId(null);
+      }
+
       setResult(data.result);
       setInterventionId(data.intervention.id);
-      setMemorySaved(false);
+      setSavedMemory(false);
       setStatus("draft");
-      router.replace(`/interventions/${meta.slug}?id=${data.intervention.id}`, {
-        scroll: false,
-      });
-      router.refresh();
-      // Auto-save pattern to memory (fire-and-forget)
-      fetch(`/api/interventions/${data.intervention.id}/save-memory`, { method: "POST" })
-        .then(() => setMemorySaved(true))
-        .catch(() => {});
+      setSelected(new Set());
+      setMsg(null);
+      router.replace(`/interventions/${meta.slug}?id=${data.intervention.id}`, { scroll: false });
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -205,49 +209,96 @@ export function ToolPanel({ type }: { type: InterventionType }) {
     }
   };
 
+  const patchStatus = async (next: Status) => {
+    if (!interventionId) return;
+    try {
+      const r = await fetch(`/api/interventions/${interventionId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: next }),
+      });
+      if (!r.ok) throw new Error("Status update failed.");
+      const j = (await r.json().catch(() => ({}))) as { intervention?: { status?: Status } };
+      const persisted = j.intervention?.status ?? next;
+      setStatus(persisted);
+      setMsg(`Marked as ${persisted}.`);
+    } catch (e) {
+      setMsg((e as Error).message);
+    }
+  };
+
+  const handleConvert = async (scope: "first" | "selected" | "all", addToToday: boolean) => {
+    if (!interventionId) return;
+    try {
+      const body: Record<string, unknown> = { scope, addToToday };
+      if (scope === "selected") body.stepIds = [...selected];
+      const r = await fetch(`/api/interventions/${interventionId}/to-tasks`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!r.ok) {
+        const j = (await r.json().catch(() => ({}))) as { error?: string };
+        throw new Error(j.error || "Convert failed.");
+      }
+      const j = (await r.json()) as { inserted: number };
+      setMsg(`Added ${j.inserted} step${j.inserted === 1 ? "" : "s"} to ${addToToday ? "today" : "inbox"}.`);
+      setSelected(new Set());
+    } catch (e) {
+      setMsg((e as Error).message);
+    }
+  };
+
+  const toggle = (id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+
   const summary = (() => {
     switch (type) {
-      case "task_shatter":
-        return form.task || "—";
-      case "dopamine_menu":
-        return form.intent || `Energy ${state.energy ?? "—"} · Mood ${state.mood ?? "—"}`;
-      case "context_switch":
-        return `${form.finished || "?"} → ${form.next || "?"}`;
-      case "interest_filter":
-        return `${form.task || "?"} · theme: ${form.interest || "?"}`;
+      case "task_shatter":    return form.task || "—";
+      case "dopamine_menu":   return form.intent || `Energy ${state.energy ?? "—"} · Mood ${state.mood ?? "—"}`;
+      case "context_switch":  return `${form.finished || "?"} → ${form.next || "?"}`;
+      case "interest_filter": return `${form.task || "?"} · theme: ${form.interest || "?"}`;
     }
   })();
 
-  function resetForNew() {
-    skipNextHydrate.current = true;
-    setForm(EMPTY_FORM);
-    setResult(null);
-    setInterventionId(null);
-    setStatus("draft");
-    setError(null);
-    router.replace(`/interventions/${meta.slug}`, { scroll: false });
-  }
+  const firstAction = result ? firstActionOf(result) : null;
+  const allSteps = result ? collectSteps(result) : [];
 
   return (
-    <div className="space-y-5 anim-fade-in">
+    <div className="max-w-2xl mx-auto space-y-5 anim-fade-in">
+      {/* Nav */}
       <div className="flex items-center justify-between">
         <Link
           href="/interventions"
-          className="text-[10px] uppercase tracking-[0.28em] text-[var(--shadow-text-faint)] hover:text-[var(--shadow-text-muted)]"
+          className="text-[10px] uppercase tracking-[0.28em] text-[var(--shadow-text-faint)] hover:text-[var(--shadow-text-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--shadow-gold)] rounded"
         >
-          ← All interventions
+          ← Interventions
         </Link>
-        {interventionId && (
+        {result && (
           <button
             type="button"
-            onClick={resetForNew}
-            className="text-[10px] uppercase tracking-[0.22em] text-[var(--shadow-text-faint)] hover:text-[var(--shadow-gold)]"
+            onClick={() => {
+              setForm(EMPTY_FORM);
+              setResult(null);
+              setInterventionId(null);
+              setStatus("draft");
+              setError(null);
+              setMsg(null);
+              setSelected(new Set());
+              router.replace(`/interventions/${meta.slug}?new=1`, { scroll: false });
+            }}
+            className="text-[10px] uppercase tracking-[0.22em] text-[var(--shadow-text-faint)] hover:text-[var(--shadow-gold)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--shadow-gold)] rounded"
           >
-            New intervention +
+            New +
           </button>
         )}
       </div>
 
+      {/* Header */}
       <header>
         <p className="text-[10px] uppercase tracking-[0.28em] text-[var(--shadow-text-faint)]">
           Intervention
@@ -255,147 +306,223 @@ export function ToolPanel({ type }: { type: InterventionType }) {
         <h1 className="font-[family-name:var(--font-fraunces)] text-3xl md:text-4xl mt-1 text-gradient-subtle">
           {meta.name}
         </h1>
-        <p className="text-sm text-[var(--shadow-text-muted)] mt-2 max-w-xl">
+        <p className="text-sm text-[var(--shadow-text-muted)] mt-2">
           {meta.short}
         </p>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-5">
-        {/* Form */}
-        <div className="panel-ambient p-5 space-y-4">
-          {type === "task_shatter" && (
-            <>
-              <div>
-                <label className={FIELD_LABEL}>What feels stuck</label>
-                <input
-                  className={FIELD_INPUT}
-                  placeholder="Update my CV…"
-                  value={form.task}
-                  onChange={(e) => update("task", e.target.value)}
-                  maxLength={400}
-                />
-              </div>
-              <div>
-                <label className={FIELD_LABEL}>Context (optional)</label>
-                <textarea
-                  className={FIELD_INPUT + " min-h-[80px] resize-y"}
-                  placeholder="What's making it heavy?"
-                  value={form.notes}
-                  onChange={(e) => update("notes", e.target.value)}
-                  maxLength={500}
-                />
-              </div>
-            </>
-          )}
+      {/* State chips */}
+      <StateInputPanel compact={false} />
 
-          {type === "dopamine_menu" && (
+      {/* Form */}
+      <div className="panel-ambient p-5 space-y-4">
+        {type === "task_shatter" && (
+          <>
             <div>
-              <label className={FIELD_LABEL}>Optional intent</label>
+              <label className={FIELD_LABEL}>What feels stuck</label>
               <input
                 className={FIELD_INPUT}
-                placeholder="Need a small win before the meeting"
-                value={form.intent}
-                onChange={(e) => update("intent", e.target.value)}
+                placeholder="Update my CV…"
+                value={form.task}
+                onChange={(e) => update("task", e.target.value)}
+                maxLength={400}
+              />
+            </div>
+            <div>
+              <label className={FIELD_LABEL}>Context (optional)</label>
+              <textarea
+                className={FIELD_INPUT + " min-h-[80px] resize-y"}
+                placeholder="What's making it heavy?"
+                value={form.notes}
+                onChange={(e) => update("notes", e.target.value)}
+                maxLength={500}
+              />
+            </div>
+          </>
+        )}
+
+        {type === "dopamine_menu" && (
+          <div>
+            <label className={FIELD_LABEL}>Optional intent</label>
+            <input
+              className={FIELD_INPUT}
+              placeholder="Need a small win before the meeting"
+              value={form.intent}
+              onChange={(e) => update("intent", e.target.value)}
+              maxLength={200}
+            />
+            <p className="text-xs text-[var(--shadow-text-faint)] mt-2">
+              Set energy / mood above for best results.
+            </p>
+          </div>
+        )}
+
+        {type === "context_switch" && (
+          <>
+            <div>
+              <label className={FIELD_LABEL}>Just finished</label>
+              <input
+                className={FIELD_INPUT}
+                placeholder="Writing emails"
+                value={form.finished}
+                onChange={(e) => update("finished", e.target.value)}
                 maxLength={200}
               />
-              <p className="text-xs text-[var(--shadow-text-faint)] mt-2">
-                Set energy / mood in the right panel for best results.
-              </p>
             </div>
-          )}
-
-          {type === "context_switch" && (
-            <>
-              <div>
-                <label className={FIELD_LABEL}>Just finished</label>
-                <input
-                  className={FIELD_INPUT}
-                  placeholder="Writing emails"
-                  value={form.finished}
-                  onChange={(e) => update("finished", e.target.value)}
-                  maxLength={200}
-                />
-              </div>
-              <div>
-                <label className={FIELD_LABEL}>Moving into</label>
-                <input
-                  className={FIELD_INPUT}
-                  placeholder="Designing landing page"
-                  value={form.next}
-                  onChange={(e) => update("next", e.target.value)}
-                  maxLength={200}
-                />
-              </div>
-            </>
-          )}
-
-          {type === "interest_filter" && (
-            <>
-              <div>
-                <label className={FIELD_LABEL}>Boring task</label>
-                <input
-                  className={FIELD_INPUT}
-                  placeholder="Organize invoices"
-                  value={form.task}
-                  onChange={(e) => update("task", e.target.value)}
-                  maxLength={200}
-                />
-              </div>
-              <div>
-                <label className={FIELD_LABEL}>Current interest / theme</label>
-                <input
-                  className={FIELD_INPUT}
-                  placeholder="Dark fantasy, cyberpunk, archive of lost knowledge…"
-                  value={form.interest}
-                  onChange={(e) => update("interest", e.target.value)}
-                  maxLength={120}
-                />
-              </div>
-            </>
-          )}
-
-          {error && (
-            <div className="rounded-md border border-[rgba(172,82,101,0.4)] bg-[rgba(172,82,101,0.08)] px-3 py-2 text-sm text-[var(--state-danger)]">
-              {error}
+            <div>
+              <label className={FIELD_LABEL}>Moving into</label>
+              <input
+                className={FIELD_INPUT}
+                placeholder="Designing landing page"
+                value={form.next}
+                onChange={(e) => update("next", e.target.value)}
+                maxLength={200}
+              />
             </div>
-          )}
+          </>
+        )}
 
-          <button
-            type="button"
-            onClick={() => generate(false)}
-            disabled={loading}
-            className="w-full rounded-md border border-[var(--shadow-border-active)] bg-[rgba(214,184,116,0.08)] hover:bg-[rgba(214,184,116,0.14)] px-4 py-2.5 text-[11px] uppercase tracking-[0.28em] text-[var(--shadow-gold)] transition-all disabled:opacity-40 shadow-[0_0_18px_rgba(214,184,116,0.10)]"
+        {type === "interest_filter" && (
+          <>
+            <div>
+              <label className={FIELD_LABEL}>Boring task</label>
+              <input
+                className={FIELD_INPUT}
+                placeholder="Organize invoices"
+                value={form.task}
+                onChange={(e) => update("task", e.target.value)}
+                maxLength={200}
+              />
+            </div>
+            <div>
+              <label className={FIELD_LABEL}>Current interest / theme</label>
+              <input
+                className={FIELD_INPUT}
+                placeholder="Dark fantasy, cyberpunk, archive of lost knowledge…"
+                value={form.interest}
+                onChange={(e) => update("interest", e.target.value)}
+                maxLength={120}
+              />
+            </div>
+          </>
+        )}
+
+        {error && (
+          <div
+            className="rounded-md border border-[rgba(172,82,101,0.4)] bg-[rgba(172,82,101,0.08)] px-3 py-2 text-sm text-[var(--state-danger)]"
+            role="alert"
           >
-            {loading ? "Shadow is forming the ritual…" : result ? "Generate again" : "Generate intervention"}
-          </button>
-        </div>
+            {error}
+          </div>
+        )}
 
-        <div className="space-y-3">
-          <StateInputPanel />
-          <VariantSwitcher type={type} activeId={interventionId} />
-        </div>
+        <button
+          type="button"
+          onClick={() => generate(false)}
+          disabled={loading}
+          className="w-full rounded-md border border-[var(--shadow-border-active)] bg-[rgba(214,184,116,0.08)] hover:bg-[rgba(214,184,116,0.14)] px-4 py-2.5 text-[11px] uppercase tracking-[0.28em] text-[var(--shadow-gold)] transition-all disabled:opacity-40 shadow-[0_0_18px_rgba(214,184,116,0.10)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--shadow-gold)]"
+        >
+          {loading
+            ? "Shadow is forming the ritual…"
+            : result
+              ? "Generate again"
+              : "Generate intervention"}
+        </button>
       </div>
 
       {loading && !result && <ShadowLoader />}
 
       {hydrating && !result && !loading && (
         <div className="panel-ghost p-5 text-center text-sm text-[var(--shadow-text-faint)] italic">
-          Shadow is recovering your last ritual…
+          Shadow is recovering your ritual…
         </div>
       )}
 
+      {/* Result */}
       {result && interventionId && (
-        <ResultCard
-          interventionId={interventionId}
-          type={type}
-          inputSummary={summary}
-          result={result}
-          initialStatus={status}
-          initialSavedMemory={memorySaved}
-          onRegenerate={() => generate(true)}
-          onStatusChange={(s) => setStatus(s)}
-          regenerating={regen}
-        />
+        <div className="space-y-5">
+          {/* First action hero */}
+          {status !== "completed" && (
+            <div className="panel-bloom-gold relative p-5 overflow-hidden rounded-xl">
+              <BorderBeam size={180} duration={14} colorFrom="rgba(214,184,116,0)" colorTo="rgba(214,184,116,0.55)" />
+              <div
+                aria-hidden
+                className="pointer-events-none absolute inset-0"
+                style={{ background: "radial-gradient(60% 80% at 0% 50%, rgba(214,184,116,0.10) 0%, transparent 70%)" }}
+              />
+              <div className="relative space-y-3">
+                <p className="text-[10px] uppercase tracking-[0.32em] text-[var(--shadow-gold)]">
+                  Your next move
+                </p>
+                <p className="font-[family-name:var(--font-fraunces)] text-xl md:text-2xl text-[var(--shadow-text)] leading-snug">
+                  {firstAction}
+                </p>
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {status === "active" ? (
+                    <span className="text-[11px] uppercase tracking-[0.22em] px-3 py-2 rounded-md border border-[var(--shadow-border-active)] text-[var(--shadow-gold)]">
+                      Active
+                    </span>
+                  ) : (
+                    <ShimmerButton onClick={() => patchStatus("active")} aria-label="Start intervention">
+                      Start now
+                    </ShimmerButton>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => handleConvert("first", true)}
+                    className="text-[11px] uppercase tracking-[0.22em] px-3 py-2 rounded-md border transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--shadow-gold)] border-[var(--shadow-border)] bg-[rgba(20,20,30,0.4)] text-[var(--shadow-text-muted)] hover:text-[var(--shadow-text)]"
+                  >
+                    Add to Today
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Per-type result view */}
+          <div className="panel-ambient p-5">
+            <ResultView result={result} selected={selected} onToggle={toggle} status={status} />
+          </div>
+
+          {/* Actions */}
+          <div className="space-y-3">
+            <StatusActions status={status} busy={false} onPatchStatus={patchStatus} />
+            <div className="flex flex-wrap gap-2 items-center">
+              <button
+                type="button"
+                onClick={() => generate(true)}
+                disabled={regen}
+                className="text-[11px] uppercase tracking-[0.22em] px-3 py-2 rounded-md border transition-all disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--shadow-gold)] border-[var(--shadow-border)] bg-[rgba(20,20,30,0.4)] text-[var(--shadow-text-muted)] hover:text-[var(--shadow-text)]"
+              >
+                {regen ? "Regenerating…" : "Regenerate"}
+              </button>
+              <MemoryActions
+                interventionId={interventionId}
+                savedMemory={savedMemory}
+                busy={false}
+                type={type}
+                result={result}
+                inputSummary={summary}
+                onSaved={() => setSavedMemory(true)}
+              />
+            </div>
+            {allSteps.length > 0 && (
+              <ConversionActions
+                interventionId={interventionId}
+                allSteps={allSteps}
+                selected={selected}
+                busy={false}
+                onConvert={handleConvert}
+              />
+            )}
+          </div>
+
+          {msg && (
+            <p className="text-xs text-[var(--shadow-text-muted)] italic" aria-live="polite">
+              {msg}
+            </p>
+          )}
+        </div>
       )}
     </div>
   );
