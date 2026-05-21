@@ -53,6 +53,8 @@ export function StuckRightNowPanel() {
             <Link
               key={b.href}
               href={b.href}
+              target="_blank"
+              rel="noopener noreferrer"
               className="group rounded-md bg-[rgba(20,20,30,0.5)] hover:bg-[rgba(214,184,116,0.08)] hover:shadow-[0_0_18px_rgba(214,184,116,0.08)] transition-all px-3 py-2.5 flex items-center justify-between gap-2"
             >
               <span className="text-sm text-[var(--shadow-text)] group-hover:text-[var(--shadow-gold)] transition-colors">

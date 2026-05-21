@@ -53,6 +53,8 @@ export function RecentInterventions({ items }: { items: InterventionRow[] }) {
             <li key={row.id}>
               <Link
                 href={`/interventions/${meta.slug}?id=${row.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="flex items-center gap-3 px-4 py-3 hover:bg-[rgba(255,255,255,0.02)] transition-colors"
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-[var(--shadow-gold)] opacity-50" />
