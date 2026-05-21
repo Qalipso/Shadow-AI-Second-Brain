@@ -5,7 +5,7 @@ import { Drawer } from "@/components/Drawer";
 import type { Habit, HabitLog, HabitSchedule } from "@/types/db";
 import {
   DrawerHeader, DrawerTabs, FieldLabel, TextField, TextArea,
-  SelectField, LifeAreasPicker, Section, Chip,
+  SelectField, LifeAreasPicker, Section, Chip, UnsavedChangesBar,
 } from "@/components/direction/drawer-ui";
 import { SaveBar } from "@/components/direction/SaveBar";
 import { useSaveState } from "@/components/direction/useSaveState";
@@ -64,6 +64,7 @@ export function RitualDetailDrawer({
   onChanged?: (h: Habit) => void;
 }) {
   const [tab, setTab] = useState<Tab>("Overview");
+  const [confirmClose, setConfirmClose] = useState(false);
 
   const initial: Editable = useMemo(
     () => habit ? toEditable(habit) : toEditable({
@@ -130,12 +131,19 @@ export function RitualDetailDrawer({
         lifeAreas={save.draft.sphere_slugs}
         updatedAt={habit.updated_at}
         onClose={() => {
-          if (save.dirty && !window.confirm("Discard unsaved changes?")) return;
+          if (save.dirty) { setConfirmClose(true); return; }
           onClose();
         }}
         editing
         onTitleChange={(v) => save.update("name", v)}
       />
+
+      {confirmClose && (
+        <UnsavedChangesBar
+          onDiscard={() => { setConfirmClose(false); onClose(); }}
+          onKeep={() => setConfirmClose(false)}
+        />
+      )}
 
       <DrawerTabs tabs={TABS} value={tab} onChange={setTab} />
 

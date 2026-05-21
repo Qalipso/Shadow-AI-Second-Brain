@@ -5,7 +5,7 @@ import { Drawer } from "@/components/Drawer";
 import type { Goal, Mission, Task } from "@/types/db";
 import {
   DrawerHeader, DrawerTabs, FieldLabel, TextField, TextArea,
-  SelectField, LifeAreasPicker, Section, Chip,
+  SelectField, LifeAreasPicker, Section, Chip, UnsavedChangesBar,
 } from "./drawer-ui";
 import { SaveBar } from "./SaveBar";
 import { useSaveState } from "./useSaveState";
@@ -58,6 +58,7 @@ export function TaskDetailDrawer({
   onChanged?: (t: Task) => void;
 }) {
   const [tab, setTab] = useState<Tab>("Overview");
+  const [confirmClose, setConfirmClose] = useState(false);
   const [convertPending, setConvertPending] = useState(false);
   const [converting, setConverting] = useState(false);
   const [convertDone, setConvertDone] = useState(false);
@@ -151,12 +152,19 @@ export function TaskDetailDrawer({
         lifeAreas={save.draft.linked_life_areas}
         updatedAt={task.updated_at ?? task.created_at}
         onClose={() => {
-          if (save.dirty && !window.confirm("Discard unsaved changes?")) return;
+          if (save.dirty) { setConfirmClose(true); return; }
           onClose();
         }}
         editing
         onTitleChange={(v) => save.update("title", v)}
       />
+
+      {confirmClose && (
+        <UnsavedChangesBar
+          onDiscard={() => { setConfirmClose(false); onClose(); }}
+          onKeep={() => setConfirmClose(false)}
+        />
+      )}
 
       <DrawerTabs tabs={TABS} value={tab} onChange={setTab} />
 

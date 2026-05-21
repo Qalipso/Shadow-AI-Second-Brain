@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 // Right-side slide drawer. Keeps page visible. ESC closes. Body scroll locked.
 // Optional unsavedGuard prevents closing when there are unsaved edits.
@@ -24,9 +24,10 @@ export function Drawer({
   children: ReactNode;
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
+  const [pendingClose, setPendingClose] = useState(false);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) { setPendingClose(false); return; }
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const prevActive = document.activeElement as HTMLElement | null;
@@ -62,8 +63,8 @@ export function Drawer({
 
   function attemptClose() {
     if (unsavedGuard?.()) {
-      const ok = window.confirm("You have unsaved changes. Discard them and close?");
-      if (!ok) return;
+      setPendingClose(true);
+      return;
     }
     onClose();
   }
@@ -76,7 +77,8 @@ export function Drawer({
         type="button"
         aria-label="Close drawer"
         onClick={attemptClose}
-        className="fixed inset-0 z-40 bg-black/55 backdrop-blur-[2px] anim-backdrop"
+        className="fixed inset-0 z-40 backdrop-blur-sm anim-backdrop"
+        style={{ background: "rgba(6,5,14,0.62)" }}
       />
       <div
         ref={ref}
@@ -90,6 +92,44 @@ export function Drawer({
           borderLeft: "1px solid var(--shadow-border)",
         }}
       >
+        {pendingClose && (
+          <div
+            className="flex items-center gap-3 px-6 py-2.5 flex-shrink-0"
+            role="alertdialog"
+            aria-label="Unsaved changes"
+            style={{
+              background: "rgba(224,178,92,0.06)",
+              borderBottom: "1px solid rgba(224,178,92,0.18)",
+            }}
+          >
+            <span
+              className="text-[11px] flex-1"
+              style={{ color: "var(--shadow-text-muted)" }}
+            >
+              Unsaved changes will be lost.
+            </span>
+            <button
+              type="button"
+              onClick={() => { setPendingClose(false); onClose(); }}
+              className="px-2.5 py-1 rounded text-[10.5px] font-mono transition-all"
+              style={{
+                background: "rgba(224,178,92,0.10)",
+                border: "1px solid rgba(224,178,92,0.28)",
+                color: "rgba(224,178,92,0.9)",
+              }}
+            >
+              Discard
+            </button>
+            <button
+              type="button"
+              onClick={() => setPendingClose(false)}
+              className="text-[10px] font-mono"
+              style={{ color: "var(--shadow-text-faint)" }}
+            >
+              Keep editing
+            </button>
+          </div>
+        )}
         {children}
       </div>
       <style jsx global>{`

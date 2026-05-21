@@ -432,3 +432,52 @@ export function Section({ title, children, action }: { title: string; children: 
     </section>
   );
 }
+
+// ─── Unsaved changes confirmation bar ──────────────────────────────────────
+
+export function UnsavedChangesBar({
+  onDiscard,
+  onKeep,
+}: {
+  onDiscard: () => void;
+  onKeep: () => void;
+}) {
+  return (
+    <div
+      className="flex items-center gap-3 px-6 py-2.5"
+      role="alertdialog"
+      aria-label="Unsaved changes"
+      style={{
+        background: "rgba(224,178,92,0.06)",
+        borderBottom: "1px solid rgba(224,178,92,0.18)",
+      }}
+    >
+      <span
+        className="text-[11px] flex-1"
+        style={{ color: "var(--shadow-text-muted)" }}
+      >
+        Unsaved changes will be lost.
+      </span>
+      <button
+        type="button"
+        onClick={onDiscard}
+        className="px-2.5 py-1 rounded text-[10.5px] font-mono transition-all"
+        style={{
+          background: "rgba(224,178,92,0.10)",
+          border: "1px solid rgba(224,178,92,0.28)",
+          color: "rgba(224,178,92,0.9)",
+        }}
+      >
+        Discard
+      </button>
+      <button
+        type="button"
+        onClick={onKeep}
+        className="text-[10px] font-mono"
+        style={{ color: "var(--shadow-text-faint)" }}
+      >
+        Keep editing
+      </button>
+    </div>
+  );
+}
