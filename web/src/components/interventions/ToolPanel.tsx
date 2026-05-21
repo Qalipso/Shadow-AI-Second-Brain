@@ -56,6 +56,7 @@ export function ToolPanel({ type }: { type: InterventionType }) {
   const router = useRouter();
   const params = useSearchParams();
   const idFromUrl = params.get("id");
+  const isNew = params.get("new") === "1";
   const meta = TOOL_LABELS[type];
   const { state } = useInterventionState();
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
@@ -71,10 +72,16 @@ export function ToolPanel({ type }: { type: InterventionType }) {
   >("draft");
   const skipNextHydrate = useRef(false);
 
-  // Hydrate from URL ?id= or latest draft for this type
+  // Hydrate from URL ?id= or latest draft for this type.
+  // Skip entirely when ?new=1 (fresh create from grid).
   useEffect(() => {
     if (skipNextHydrate.current) {
       skipNextHydrate.current = false;
+      return;
+    }
+    // ?new=1: clean param from URL and start blank — do not load any existing draft
+    if (isNew && !idFromUrl) {
+      router.replace(`/interventions/${meta.slug}`, { scroll: false });
       return;
     }
     let cancelled = false;
@@ -112,7 +119,7 @@ export function ToolPanel({ type }: { type: InterventionType }) {
     return () => {
       cancelled = true;
     };
-  }, [idFromUrl, type]);
+  }, [idFromUrl, isNew, type, meta.slug, router]);
 
   const update = (k: keyof FormState, v: string) =>
     setForm((p) => ({ ...p, [k]: v }));
