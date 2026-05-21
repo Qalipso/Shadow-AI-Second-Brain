@@ -85,7 +85,8 @@ export function Modal({
         type="button"
         aria-label="Close dialog"
         onClick={onClose}
-        className="fixed inset-0 z-40 bg-black/65 backdrop-blur-sm anim-backdrop"
+        className="fixed inset-0 z-40 backdrop-blur-md anim-backdrop"
+        style={{ background: "rgba(6,5,14,0.68)" }}
       />
       <div
         ref={dialogRef}

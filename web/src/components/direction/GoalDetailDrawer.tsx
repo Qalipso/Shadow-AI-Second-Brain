@@ -48,17 +48,21 @@ function toEditable(g: Goal): Editable {
 }
 
 export function GoalDetailDrawer({
-  goal, open, onClose, onChanged,
+  goal, open, onClose, onChanged, onDeleted,
 }: {
   goal: Goal | null;
   open: boolean;
   onClose: () => void;
   onChanged?: (goal: Goal) => void;
+  onDeleted?: (id: string) => void;
 }) {
   const [tab, setTab] = useState<Tab>("Overview");
   const [confirmClose, setConfirmClose] = useState(false);
   const [missions, setMissions] = useState<Mission[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [closing, setClosing] = useState(false);
 
   const initial: Editable = goal ? toEditable(goal) : toEditable({
     id: "", user_id: "", title: "", description: null, why: null,
@@ -105,6 +109,40 @@ export function GoalDetailDrawer({
       setTasks((t.tasks ?? []) as Task[]);
     }).catch(() => { /* keep empty */ });
   }, [open, goal]);
+
+  async function handleClose() {
+    if (!goal) return;
+    setClosing(true);
+    try {
+      const res = await fetch(`/api/goals/${goal.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "completed" }),
+      });
+      if (res.ok) {
+        const { goal: updated } = await res.json() as { goal: Goal };
+        onChanged?.(updated);
+        onClose();
+      }
+    } finally {
+      setClosing(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (!goal) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/goals/${goal.id}`, { method: "DELETE" });
+      if (res.ok) {
+        onDeleted?.(goal.id);
+        onClose();
+      }
+    } finally {
+      setDeleting(false);
+      setDeleteConfirm(false);
+    }
+  }
 
   if (!goal) return null;
 
@@ -218,6 +256,69 @@ export function GoalDetailDrawer({
                 value={save.draft.energy_score}
                 onChange={(v) => save.update("energy_score", v)}
               />
+            </div>
+
+            <div className="pt-2" style={{ borderTop: "1px solid var(--shadow-border)" }}>
+              <p className="text-[9px] font-mono uppercase tracking-[0.22em] mb-2.5"
+                style={{ color: "var(--shadow-text-faint)" }}>
+                Actions
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {save.draft.status !== "completed" && (
+                  <button
+                    type="button"
+                    onClick={handleClose}
+                    disabled={closing}
+                    className="px-3 py-1.5 rounded-md text-[10.5px] font-mono transition-all disabled:opacity-40"
+                    style={{
+                      background: "rgba(111,191,138,0.10)",
+                      border: "1px solid rgba(111,191,138,0.28)",
+                      color: "var(--shadow-green, #6FBF8A)",
+                    }}
+                  >
+                    {closing ? "Closing…" : "Close Goal"}
+                  </button>
+                )}
+                {deleteConfirm ? (
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={handleDelete}
+                      disabled={deleting}
+                      className="px-3 py-1.5 rounded-md text-[10.5px] font-mono transition-all disabled:opacity-40"
+                      style={{
+                        background: "rgba(227,97,97,0.12)",
+                        border: "1px solid rgba(227,97,97,0.35)",
+                        color: "#E36161",
+                      }}
+                    >
+                      {deleting ? "Deleting…" : "Confirm Delete"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDeleteConfirm(false)}
+                      className="text-[10px] font-mono"
+                      style={{ color: "var(--shadow-text-faint)" }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setDeleteConfirm(true)}
+                    className="px-3 py-1.5 rounded-md text-[10.5px] font-mono transition-all"
+                    style={{
+                      background: "rgba(255,255,255,0.02)",
+                      border: "1px solid rgba(227,97,97,0.22)",
+                      color: "#E36161",
+                      opacity: 0.75,
+                    }}
+                  >
+                    Delete Goal
+                  </button>
+                )}
+              </div>
             </div>
           </>
         )}

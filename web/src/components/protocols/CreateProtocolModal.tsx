@@ -118,7 +118,8 @@ export function CreateProtocolModal({ open, onClose, onCreated }: Props) {
     <>
       {/* Backdrop */}
       <div
-        className="anim-backdrop fixed inset-0 z-40 bg-black/70 backdrop-blur-sm"
+        className="anim-backdrop fixed inset-0 z-40 backdrop-blur-md"
+        style={{ background: "rgba(6,5,14,0.68)" }}
         onClick={onClose}
       />
 

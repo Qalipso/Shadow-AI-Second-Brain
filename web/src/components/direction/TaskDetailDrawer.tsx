@@ -48,7 +48,7 @@ function toEditable(t: Task): Editable {
 }
 
 export function TaskDetailDrawer({
-  task, goals, missions, open, onClose, onChanged,
+  task, goals, missions, open, onClose, onChanged, onDeleted,
 }: {
   task: Task | null;
   goals: Goal[];
@@ -56,6 +56,7 @@ export function TaskDetailDrawer({
   open: boolean;
   onClose: () => void;
   onChanged?: (t: Task) => void;
+  onDeleted?: (id: string) => void;
 }) {
   const [tab, setTab] = useState<Tab>("Overview");
   const [confirmClose, setConfirmClose] = useState(false);
@@ -63,6 +64,8 @@ export function TaskDetailDrawer({
   const [converting, setConverting] = useState(false);
   const [convertDone, setConvertDone] = useState(false);
   const [convertError, setConvertError] = useState<string | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const initial: Editable = task ? toEditable(task) : toEditable({
     id: "", user_id: "", title: "", description: null, status: "open",
@@ -134,6 +137,21 @@ export function TaskDetailDrawer({
       setConvertPending(false);
     } finally {
       setConverting(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (!task) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/tasks/${task.id}`, { method: "DELETE" });
+      if (res.ok) {
+        onDeleted?.(task.id);
+        onClose();
+      }
+    } finally {
+      setDeleting(false);
+      setDeleteConfirm(false);
     }
   }
 
@@ -354,6 +372,50 @@ export function TaskDetailDrawer({
             {convertError && (
               <p className="text-[10px] mt-1" style={{ color: "#E36161" }}>{convertError}</p>
             )}
+
+            <div className="pt-2" style={{ borderTop: "1px solid var(--shadow-border)" }}>
+              <div className="flex flex-wrap gap-2">
+                {deleteConfirm ? (
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={handleDelete}
+                      disabled={deleting}
+                      className="px-3 py-1.5 rounded-md text-[10.5px] font-mono transition-all disabled:opacity-40"
+                      style={{
+                        background: "rgba(227,97,97,0.12)",
+                        border: "1px solid rgba(227,97,97,0.35)",
+                        color: "#E36161",
+                      }}
+                    >
+                      {deleting ? "Deleting…" : "Confirm Delete"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDeleteConfirm(false)}
+                      className="text-[10px] font-mono"
+                      style={{ color: "var(--shadow-text-faint)" }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setDeleteConfirm(true)}
+                    className="px-3 py-1.5 rounded-md text-[10.5px] font-mono transition-all"
+                    style={{
+                      background: "rgba(255,255,255,0.02)",
+                      border: "1px solid rgba(227,97,97,0.22)",
+                      color: "#E36161",
+                      opacity: 0.75,
+                    }}
+                  >
+                    Delete Task
+                  </button>
+                )}
+              </div>
+            </div>
           </>
         )}
 

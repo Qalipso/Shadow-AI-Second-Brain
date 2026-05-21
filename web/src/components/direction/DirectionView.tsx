@@ -44,8 +44,10 @@ export function DirectionView() {
 
   function handleGoalCreated(goal: Goal)    { setGoals((p) => [goal, ...p]); }
   function handleGoalUpdated(goal: Goal)    { setGoals((p) => p.map((g) => g.id === goal.id ? goal : g)); }
+  function handleGoalDeleted(id: string)    { setGoals((p) => p.filter((g) => g.id !== id)); setOpenGoal(null); }
   function handleMissionUpdated(m: Mission) { setMissions((p) => p.map((x) => x.id === m.id ? m : x)); }
   function handleTaskUpdated(t: Task)       { setTasks((p) => p.map((x) => x.id === t.id ? t : x)); }
+  function handleTaskDeleted(id: string)    { setTasks((p) => p.filter((t) => t.id !== id)); setOpenTask(null); }
 
   async function quickToggleTask(t: Task) {
     const newStatus = t.status === "done" ? "open" : "done";
@@ -230,6 +232,7 @@ export function DirectionView() {
         goal={openGoal}
         onClose={() => setOpenGoal(null)}
         onChanged={handleGoalUpdated}
+        onDeleted={handleGoalDeleted}
       />
 
       <MissionDetailDrawer
@@ -247,6 +250,7 @@ export function DirectionView() {
         missions={missions}
         onClose={() => setOpenTask(null)}
         onChanged={handleTaskUpdated}
+        onDeleted={handleTaskDeleted}
       />
     </div>
   );

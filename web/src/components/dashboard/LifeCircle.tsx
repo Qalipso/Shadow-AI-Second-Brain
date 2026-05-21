@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { type CSSProperties, useMemo } from "react";
 import type { LifeArea, LifeAreaScore } from "@/types/db";
 import { useEntries } from "@/lib/entries/useEntries";
 import { localDateKey } from "@/lib/time";
@@ -49,6 +49,29 @@ function trendArrow(
   if (diff >= 0.5) return { symbol: "\u25B2", color: "#6FBF8A" };
   if (diff <= -0.5) return { symbol: "\u25BC", color: "#E36161" };
   return { symbol: "\u2192", color: "#71717a" };
+}
+
+type CalibrationLevel = "uncalibrated" | "low" | "medium" | "high";
+
+function calibrationFor(stat: AreaStat, confidence: number | null): CalibrationLevel {
+  const conf = confidence ?? 0;
+  if (stat.total === 0) return "uncalibrated";
+  if (stat.total <= 2 && conf < 0.4) return "low";
+  if (stat.total >= 5 && conf > 0.7) return "high";
+  return "medium";
+}
+
+function fogStyle(level: CalibrationLevel): CSSProperties {
+  switch (level) {
+    case "uncalibrated":
+      return { opacity: 0.35, borderStyle: "dashed" };
+    case "low":
+      return { opacity: 0.6 };
+    case "medium":
+      return { opacity: 0.85 };
+    case "high":
+      return { opacity: 1 };
+  }
 }
 
 const NEGATIVE_EMOTIONS = new Set(["sad", "angry", "anxious", "frustrated", "stressed", "overwhelmed", "tired", "resistance", "avoidance", "fear"]);
@@ -145,13 +168,15 @@ export function LifeCircle({ areas, scores = [], yesterdayScores = [] }: Props) 
           const trend = trendArrow(areaScore, yesterdayScore);
           const insight = deriveInsight(stat);
           const nextAction = deriveNextAction(stat, status);
+          const calibration = calibrationFor(stat, areaScore?.confidence ?? null);
+          const fog = fogStyle(calibration);
 
           return (
             <a
               key={a.id}
               href={`/areas/${a.slug}`}
               className="card-hover card-glow group relative rounded-xl border border-[var(--border)] bg-[var(--bg-elev2)] px-4 py-3 block"
-              style={{ borderTopColor: color, borderTopWidth: 2 }}
+              style={{ borderTopColor: color, borderTopWidth: 2, ...fog }}
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
@@ -165,10 +190,10 @@ export function LifeCircle({ areas, scores = [], yesterdayScores = [] }: Props) 
                   )}
                 </div>
                 <span
-                  className={`h-2.5 w-2.5 rounded-full shrink-0 mt-1${stat.today > 0 ? " dot-breathe" : ""}`}
+                  className={`h-2.5 w-2.5 rounded-full shrink-0 mt-1${calibration === "high" || stat.today > 0 ? " dot-breathe" : ""}`}
                   style={{
-                    backgroundColor: color,
-                    boxShadow: stat.today > 0 ? `0 0 10px ${color}80` : "none",
+                    backgroundColor: calibration === "uncalibrated" ? "#5E5867" : color,
+                    boxShadow: calibration === "high" || stat.today > 0 ? `0 0 10px ${color}80` : "none",
                   }}
                 />
               </div>
@@ -212,8 +237,15 @@ export function LifeCircle({ areas, scores = [], yesterdayScores = [] }: Props) 
                 </span>
               </div>
 
+              {/* Calibration label for uncalibrated */}
+              {calibration === "uncalibrated" && (
+                <p className="mt-2 text-[11px] text-zinc-600 leading-snug italic">
+                  No signals yet
+                </p>
+              )}
+
               {/* Area insight */}
-              {insight && (
+              {calibration !== "uncalibrated" && insight && (
                 <p className="mt-2 text-[11px] text-zinc-400 leading-snug">
                   {insight}
                 </p>

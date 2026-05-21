@@ -9,6 +9,8 @@ import { SoulCoreCard } from "@/components/dashboard/SoulCoreCard";
 import { SoulCoreHero } from "@/components/dashboard/SoulCoreHero";
 import { InitiativesWidget } from "@/components/initiatives/InitiativesWidget";
 import { StuckRightNowPanel } from "@/components/interventions/StuckRightNowPanel";
+import { RecentSignals } from "@/components/dashboard/RecentSignals";
+import { Card } from "@/components/Card";
 import { BlurFade } from "@/components/fx";
 import { IdentityZone } from "@/components/dashboard/IdentityZone";
 import { ObservationsMarquee } from "@/components/dashboard/ObservationsMarquee";
@@ -64,6 +66,9 @@ export default async function DashboardPage() {
           <div className="panel-ambient p-5">
             <InboxShortcut />
           </div>
+          <Card title="Recent Signals">
+            <RecentSignals />
+          </Card>
           <StuckRightNowPanel />
         </section>
       </BlurFade>
