@@ -200,7 +200,8 @@ export function ShadowOrb({ notificationCount = 0 }: ShadowOrbProps) {
     setMsgs((m) => [...m, userMsg]);
     setLoading(true);
 
-    const historyForApi = [...msgs, userMsg]
+    // Pass PREVIOUS messages only. buildChatMessages appends `message` itself.
+    const historyForApi = msgs
       .filter((m) => !(m.role === "shadow" && m === SEED[0]))
       .slice(-MAX_HISTORY);
 
