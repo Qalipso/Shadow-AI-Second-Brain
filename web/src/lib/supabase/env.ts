@@ -8,7 +8,23 @@ export function getSupabaseEnv() {
   return { url, anonKey };
 }
 
+export function getDemoSupabaseEnv() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_DEMO_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_DEMO_ANON_KEY;
+  return { url, anonKey };
+}
+
 export function hasSupabase(): boolean {
   const { url, anonKey } = getSupabaseEnv();
   return Boolean(url && anonKey);
 }
+
+export function hasDemoSupabase(): boolean {
+  const { url, anonKey } = getDemoSupabaseEnv();
+  return Boolean(url && anonKey);
+}
+
+export const DEMO_MODE_COOKIE = "shadow-mode";
+export const DEMO_MODE_VALUE = "demo";
+export const DEMO_USER_EMAIL =
+  process.env.DEMO_USER_EMAIL ?? "demo@shadow.app";

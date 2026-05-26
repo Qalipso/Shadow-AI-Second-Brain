@@ -38,9 +38,20 @@ function isAuthPath(pathname: string) {
   );
 }
 
+const DEMO_MODE_COOKIE = "shadow-mode";
+const DEMO_MODE_VALUE = "demo";
+
 export async function proxy(request: NextRequest) {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const isDemo =
+    request.cookies.get(DEMO_MODE_COOKIE)?.value === DEMO_MODE_VALUE;
+
+  const prodUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const prodKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const demoUrl = process.env.NEXT_PUBLIC_SUPABASE_DEMO_URL;
+  const demoKey = process.env.NEXT_PUBLIC_SUPABASE_DEMO_ANON_KEY;
+
+  const url = isDemo && demoUrl ? demoUrl : prodUrl;
+  const anonKey = isDemo && demoKey ? demoKey : prodKey;
 
   // Dev mode: no Supabase → unrestricted access. Pages fall back to seed data.
   if (!url || !anonKey) {

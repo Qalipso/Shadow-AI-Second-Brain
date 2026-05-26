@@ -1,8 +1,17 @@
 "use server";
 
-import { headers } from "next/headers";
+import { headers, cookies } from "next/headers";
+import { createServerClient } from "@supabase/ssr";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { hasSupabase } from "@/lib/supabase/env";
+import {
+  hasSupabase,
+  hasDemoSupabase,
+  getSupabaseEnv,
+  getDemoSupabaseEnv,
+  DEMO_MODE_COOKIE,
+  DEMO_MODE_VALUE,
+  DEMO_USER_EMAIL,
+} from "@/lib/supabase/env";
 import { safeRedirect } from "@/lib/safe-redirect";
 
 // Server actions for /login.
@@ -22,6 +31,44 @@ async function originFromHeaders(): Promise<string> {
   const proto = h.get("x-forwarded-proto") ?? "http";
   const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3007";
   return `${proto}://${host}`;
+}
+
+// Creates a Supabase client for login with explicit mode (cannot read cookie
+// yet since the cookie is set in the same request).
+async function createLoginClient(isDemo: boolean) {
+  const { url: demoUrl, anonKey: demoKey } = getDemoSupabaseEnv();
+  const { url: prodUrl, anonKey: prodKey } = getSupabaseEnv();
+  const url = isDemo && demoUrl ? demoUrl : prodUrl;
+  const anonKey = isDemo && demoKey ? demoKey : prodKey;
+  if (!url || !anonKey) throw new Error("Supabase env missing.");
+  const cookieStore = await cookies();
+  return createServerClient(url, anonKey, {
+    cookies: {
+      getAll() { return cookieStore.getAll(); },
+      setAll(cookiesToSet) {
+        try {
+          cookiesToSet.forEach(({ name, value, options }) =>
+            cookieStore.set(name, value, options),
+          );
+        } catch { /* Server Component context */ }
+      },
+    },
+  });
+}
+
+async function setDemoModeCookie(isDemo: boolean) {
+  const cookieStore = await cookies();
+  if (isDemo) {
+    cookieStore.set(DEMO_MODE_COOKIE, DEMO_MODE_VALUE, {
+      path: "/",
+      sameSite: "strict",
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 60 * 60 * 24 * 30, // 30 days
+      httpOnly: false, // browser JS reads it to pick the right Supabase client
+    });
+  } else {
+    cookieStore.delete(DEMO_MODE_COOKIE);
+  }
 }
 
 export async function signInWithPassword(
@@ -46,11 +93,17 @@ export async function signInWithPassword(
     return { error: "Provide a valid email and password (≥ 6 chars)." };
   }
 
-  const supabase = await createSupabaseServerClient();
+  const isDemo =
+    hasDemoSupabase() &&
+    email.toLowerCase().trim() === DEMO_USER_EMAIL.toLowerCase().trim();
+
+  const supabase = await createLoginClient(isDemo);
   const { error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) {
     return { error: error.message };
   }
+
+  await setDemoModeCookie(isDemo);
   return { next };
 }
 
@@ -85,8 +138,6 @@ export async function signUpWithPassword(
   if (error) {
     return { error: error.message };
   }
-  // If a session was issued immediately (email confirmations disabled in
-  // Supabase dashboard), navigate. Otherwise wait for the email link.
   if (data.session) {
     return { next };
   }
