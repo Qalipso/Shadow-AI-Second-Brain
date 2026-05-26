@@ -8,6 +8,7 @@ const nextConfig: NextConfig = {
   // Trim memory: disable source maps in dev, smaller pages buffer.
   productionBrowserSourceMaps: false,
   reactStrictMode: true,
+  devIndicators: false,
 };
 
 export default nextConfig;

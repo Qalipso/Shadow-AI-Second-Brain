@@ -7,12 +7,20 @@ import { NextResponse, type NextRequest } from "next/server";
 const PROTECTED_PREFIXES = [
   "/dashboard",
   "/inbox",
+  "/checkin",
+  "/life-circle",
+  "/direction",
+  "/rituals",
+  "/journey",
+  "/insights",
+  "/labs",
   "/questions",
   "/areas",
   "/reports",
   "/goals",
   "/tasks",
   "/memory",
+  "/interventions",
   "/settings",
 ];
 

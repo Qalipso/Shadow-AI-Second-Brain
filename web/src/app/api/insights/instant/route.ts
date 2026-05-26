@@ -2,7 +2,13 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { hasSupabase } from "@/lib/supabase/env";
-import { getLlm, hasLlm, MODELS } from "@/lib/llm";
+import { estimateCostUsd, getLlm, hasLlm, MODELS } from "@/lib/llm";
+import {
+  isOverDailyCap,
+  maxDailyUsd,
+  recordLlmCall,
+  todaysCostUsd,
+} from "@/lib/cost-ledger";
 
 // POST /api/insights/instant
 // Generates a first-session instant insight from the user's very first capture.
@@ -45,6 +51,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   }
 
+  // Cost cap
+  if (await isOverDailyCap(user.id)) {
+    const spent = await todaysCostUsd(user.id);
+    return NextResponse.json(
+      { error: "Daily LLM cost cap reached.", spent_usd: Number(spent.toFixed(4)), cap_usd: maxDailyUsd() },
+      { status: 429 },
+    );
+  }
+
   const { entry_id, summary, life_area_slug, emotion } = parsed.data;
 
   const emotionLine = emotion
@@ -72,20 +87,33 @@ Where follow_up is one practical question Shadow could ask next.`;
   let insightText = "";
   let followUp = "";
 
+  const model = MODELS.classify;
+  const llmStarted = Date.now();
   try {
     const openai = getLlm();
     const resp = await openai.chat.completions.create({
-      model: MODELS.classify,
+      model,
       max_tokens: 200,
       temperature: 0.4,
       response_format: { type: "json_object" },
       messages: [{ role: "user", content: prompt }],
     });
+    const tokensIn = resp.usage?.prompt_tokens ?? 0;
+    const tokensOut = resp.usage?.completion_tokens ?? 0;
+    const costUsd = estimateCostUsd(model, tokensIn, tokensOut);
     const raw = resp.choices[0]?.message?.content ?? "{}";
     const json = JSON.parse(raw) as { insight?: string; follow_up?: string };
     insightText = json.insight ?? "";
     followUp = json.follow_up ?? "";
+    await recordLlmCall({
+      userId: user.id, task: "instant_insight", model,
+      latencyMs: Date.now() - llmStarted, tokensIn, tokensOut, costUsd, ok: true,
+    });
   } catch (e) {
+    await recordLlmCall({
+      userId: user.id, task: "instant_insight", model,
+      latencyMs: Date.now() - llmStarted, ok: false, error: (e as Error).message,
+    });
     return NextResponse.json(
       { error: `LLM failed: ${(e as Error).message}` },
       { status: 502 },
