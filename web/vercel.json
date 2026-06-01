@@ -1,6 +1,18 @@
 {
   "framework": "nextjs",
   "regions": ["iad1"],
+  "redirects": [
+    {
+      "source": "/",
+      "destination": "/shadow",
+      "permanent": false
+    },
+    {
+      "source": "/((?!shadow).*)",
+      "destination": "/shadow",
+      "permanent": false
+    }
+  ],
   "functions": {
     "src/app/api/reports/daily/route.ts":   { "maxDuration": 60 },
     "src/app/api/reports/weekly/route.ts":  { "maxDuration": 60 },

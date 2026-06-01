@@ -85,13 +85,15 @@ export async function proxy(request: NextRequest) {
 
   // Authed user hitting /login → bounce to /dashboard.
   if (user && pathname === "/login") {
-    const target = new URL("/dashboard", request.url);
+    const target = request.nextUrl.clone();
+    target.pathname = "/dashboard";
     return NextResponse.redirect(target);
   }
 
   // Unauthed user hitting protected route → /login with redirect_to.
   if (!user && isProtected(pathname)) {
-    const target = new URL("/login", request.url);
+    const target = request.nextUrl.clone();
+    target.pathname = "/login";
     target.searchParams.set("redirect_to", pathname);
     return NextResponse.redirect(target);
   }
