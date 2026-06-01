@@ -23,6 +23,30 @@ interface Props {
 }
 
 export async function SonicMirrorMain({ userId, spError, spSynced }: Props) {
+  // Show disabled state if Spotify credentials are not configured on this server
+  const isSpotifyConfigured = !!(process.env.SPOTIFY_CLIENT_ID && process.env.SPOTIFY_REDIRECT_URI);
+  if (!isSpotifyConfigured) {
+    return (
+      <div className="flex flex-col items-center text-center px-4 py-12">
+        <p
+          className="text-[10px] font-mono uppercase tracking-[0.3em] mb-3"
+          style={{ color: "var(--shadow-text-faint)" }}
+        >
+          Sonic Mirror
+        </p>
+        <p
+          className="text-[15px] font-[family-name:var(--font-fraunces)] font-light mb-2"
+          style={{ color: "var(--shadow-text-muted)" }}
+        >
+          Coming soon
+        </p>
+        <p className="text-[12px]" style={{ color: "var(--shadow-text-faint)" }}>
+          Spotify integration is not enabled on this server.
+        </p>
+      </div>
+    );
+  }
+
   const connection = await getSpotifyConnection(userId);
 
   // Not connected

@@ -91,11 +91,11 @@ export function MemoryTimeline({ entries, areaMap }: Props) {
                   className="card-hover rounded-lg border border-[var(--border)] bg-[var(--bg-elev2)] px-4 py-3"
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0 flex-1">
+                    <div className="min-w-0 flex-1 overflow-hidden">
                       {e.summary ? (
-                        <p className="text-sm text-zinc-200">{e.summary}</p>
+                        <p className="text-sm text-zinc-200 break-words">{e.summary}</p>
                       ) : (
-                        <p className="text-sm text-zinc-400 italic">
+                        <p className="text-sm text-zinc-400 italic break-words">
                           {e.raw_text.length > 150
                             ? `${e.raw_text.slice(0, 150)}...`
                             : e.raw_text}

@@ -27,8 +27,11 @@ export function StateMeters() {
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000);
     try {
-      const res = await fetch("/api/state-today", { cache: "no-store" });
+      const res = await fetch("/api/state-today", { cache: "no-store", signal: controller.signal });
+      clearTimeout(timer);
       if (!res.ok) {
         setState(EMPTY);
         return;
@@ -36,6 +39,7 @@ export function StateMeters() {
       const data = (await res.json()) as StateToday;
       setState(data);
     } catch {
+      clearTimeout(timer);
       setState(EMPTY);
     } finally {
       setLoading(false);
@@ -159,13 +163,13 @@ function CognitiveLoad({ value }: { value: number }) {
   const { label, hint } = cognitiveLoadLabel(value);
   return (
     <div>
-      <div className="flex items-center justify-between mb-1.5">
-        <span className="text-xs text-zinc-400">Cognitive load</span>
-        <span className="font-[family-name:var(--font-fraunces)] text-lg text-zinc-300 leading-none">
+      <div className="flex items-center justify-between gap-2 mb-1.5">
+        <span className="text-xs text-zinc-400 shrink-0">Cognitive load</span>
+        <span className="font-[family-name:var(--font-fraunces)] text-sm text-zinc-300 leading-none truncate text-right">
           {label}
         </span>
       </div>
-      <p className="text-[11px] text-zinc-600">
+      <p className="text-[11px] text-zinc-600 leading-snug">
         {hint || `${value} open high-priority item${value === 1 ? "" : "s"} today.`}
       </p>
     </div>
