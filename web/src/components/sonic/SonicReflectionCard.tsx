@@ -48,6 +48,8 @@ export function SonicReflectionCard({
   const [reflection, setReflection] = useState(initial);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [isSaving, startSave] = useTransition();
+  const [saveMsg, setSaveMsg] = useState<string | null>(null);
 
   async function generate() {
     setError(null);
@@ -68,7 +70,25 @@ export function SonicReflectionCard({
     });
   }
 
-  const canGenerate = labelCount >= 1;
+  async function saveToMemory() {
+    setSaveMsg(null);
+    setError(null);
+    startSave(async () => {
+      try {
+        const res = await fetch("/api/music/sonic-to-signals", { method: "POST" });
+        const d = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          setError((d as { error?: string }).error ?? "Save failed.");
+          return;
+        }
+        const n = (d as { saved?: number }).saved ?? 0;
+        setSaveMsg(`${n} signal${n === 1 ? "" : "s"} saved to memory.`);
+        router.refresh();
+      } catch {
+        setError("Network error.");
+      }
+    });
+  }
 
   if (!reflection) {
     return (
@@ -78,24 +98,22 @@ export function SonicReflectionCard({
             No reflection generated yet.
           </p>
           <p className="text-[11px] leading-relaxed" style={{ color: "var(--shadow-text-faint)" }}>
-            {canGenerate
-              ? "Confirm at least one label below, then generate your first reflection."
-              : "Confirm labels for your artists and tracks below to generate a reflection."}
+            {labelCount >= 1
+              ? `Shadow can read your listening now — sharpened by ${labelCount} confirmed label${labelCount === 1 ? "" : "s"}.`
+              : "Shadow can read your listening patterns now. Confirm labels below for a sharper, higher-confidence reflection."}
           </p>
-          {canGenerate && (
-            <button
-              onClick={generate}
-              disabled={isPending}
-              className="mt-1 px-3 py-1.5 rounded-lg text-[11px] font-mono transition-all disabled:opacity-50"
-              style={{
-                background: "rgba(126,87,194,0.12)",
-                border: "1px solid rgba(126,87,194,0.25)",
-                color: "rgba(126,87,194,0.9)",
-              }}
-            >
-              {isPending ? "Generating…" : "Generate Reflection"}
-            </button>
-          )}
+          <button
+            onClick={generate}
+            disabled={isPending}
+            className="mt-1 px-3 py-1.5 rounded-lg text-[11px] font-mono transition-all disabled:opacity-50"
+            style={{
+              background: "rgba(126,87,194,0.12)",
+              border: "1px solid rgba(126,87,194,0.25)",
+              color: "rgba(126,87,194,0.9)",
+            }}
+          >
+            {isPending ? "Analyzing…" : "Generate Reflection"}
+          </button>
           {error && (
             <p className="text-[11px]" style={{ color: "rgba(172,82,101,0.9)" }}>{error}</p>
           )}
@@ -216,11 +234,11 @@ export function SonicReflectionCard({
           </div>
         )}
 
-        {/* Regenerate */}
-        <div className="flex items-center gap-3 pt-1">
+        {/* Actions */}
+        <div className="flex flex-wrap items-center gap-2 pt-1">
           <button
             onClick={generate}
-            disabled={isPending}
+            disabled={isPending || isSaving}
             className="px-3 py-1.5 rounded-lg text-[11px] font-mono transition-all disabled:opacity-50"
             style={{
               background: "rgba(126,87,194,0.08)",
@@ -230,10 +248,26 @@ export function SonicReflectionCard({
           >
             {isPending ? "Generating…" : "Regenerate"}
           </button>
-          <p className="text-[10px]" style={{ color: "var(--shadow-text-faint)" }}>
-            This is a pattern interpretation, not a diagnosis.
-          </p>
+          <button
+            onClick={saveToMemory}
+            disabled={isSaving || isPending}
+            className="px-3 py-1.5 rounded-lg text-[11px] font-mono transition-all disabled:opacity-50"
+            style={{
+              background: "rgba(224,178,92,0.10)",
+              border: "1px solid rgba(224,178,92,0.22)",
+              color: "rgba(224,178,92,0.9)",
+            }}
+          >
+            {isSaving ? "Saving…" : "Save to memory as signals"}
+          </button>
         </div>
+
+        {saveMsg && (
+          <p className="text-[11px]" style={{ color: "rgba(113,179,139,0.9)" }}>{saveMsg}</p>
+        )}
+        <p className="text-[10px]" style={{ color: "var(--shadow-text-faint)" }}>
+          This is a pattern interpretation, not a diagnosis. Saved signals flow into your memory timeline.
+        </p>
 
         {error && (
           <p className="text-[11px]" style={{ color: "rgba(172,82,101,0.9)" }}>{error}</p>

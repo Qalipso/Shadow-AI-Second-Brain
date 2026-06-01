@@ -4,6 +4,10 @@ import { hasSupabase } from "@/lib/supabase/env";
 import { getLlm, hasLlm } from "@/lib/llm";
 import { LABEL_META } from "@/types/spotify";
 import type { MusicLabel } from "@/types/spotify";
+import { getSpotifyArtists, getSpotifyTracks } from "@/lib/music/data";
+import { buildSonicProfile } from "@/lib/music/profile";
+import { SONIC_ARCHETYPE_META, SOUND_STATE_META } from "@/types/music";
+import { ROLE_META } from "@/lib/music/roles";
 
 // POST /api/music/sonic-reflection
 // Generates a careful, non-diagnostic sonic reflection.
@@ -52,6 +56,20 @@ export async function POST() {
     .order("created_at", { ascending: false })
     .limit(1)
     .single();
+
+  // Engine profile — archetype, sound state, metrics, zones, party roles.
+  // Gives the model structured behavioral scaffolding even with zero labels.
+  const [shortArtistsFull, longArtistsFull, recentTracksFull] = await Promise.all([
+    getSpotifyArtists(user.id, "short_term"),
+    getSpotifyArtists(user.id, "long_term"),
+    getSpotifyTracks(user.id, "recent"),
+  ]);
+  const profile = buildSonicProfile({
+    shortArtists: shortArtistsFull,
+    longArtists: longArtistsFull,
+    recentTracks: recentTracksFull,
+    labels,
+  });
 
   // ─── Build prompt context ───────────────────────────────────────────────────
 
@@ -115,6 +133,24 @@ export async function POST() {
 - Creativity: ${wheelScore.creativity ?? "—"}/10`
     : "No recent check-in data available.";
 
+  // Engine-derived behavioral scaffolding (inferred from listening, not confirmed).
+  const arch = SONIC_ARCHETYPE_META[profile.archetype];
+  const state = SOUND_STATE_META[profile.soundState];
+  const metricLines = `Intensity ${profile.metrics.intensity}/100, Exploration ${profile.metrics.exploration}/100, Repeat ${profile.metrics.repeat}/100, Nostalgia ${profile.metrics.nostalgia}/100, Focus ${profile.metrics.focus}/100`;
+  const zoneLines = profile.zones
+    .map((z) => `- ${z.label}: ${z.artists.map((a) => a.name).join(", ")}`)
+    .join("\n");
+  const partyLines = profile.party
+    .map((m) => `- ${m.name}: ${ROLE_META[m.role].label}`)
+    .join("\n");
+  const engineLines = `INFERRED ARCHETYPE: ${arch.label} — ${arch.description}
+INFERRED SOUND STATE: ${state.label} — ${state.description}
+BEHAVIORAL METRICS (0-100, inferred from genres): ${metricLines}
+LISTENING ZONES (artists grouped by dominant vibe):
+${zoneLines || "none"}
+ARTIST ROLES:
+${partyLines || "none"}`;
+
   // Confidence: low if no labels, medium if labels confirmed, high if labels + checkin align
   const confidence =
     labelCount === 0 ? "low"
@@ -154,7 +190,7 @@ OUTPUT FORMAT (JSON, no markdown, no code blocks):
   const userPrompt = `User data:
 
 CONFIRMED LABELS (${labelCount} total):
-${labelLines || "No labels confirmed yet."}
+${labelLines || "No labels confirmed yet — lean on the inferred scaffolding below, and hedge harder."}
 
 TOP ARTISTS — last 4 weeks:
 ${topArtistLines || "No data."}
@@ -163,9 +199,11 @@ DOMINANT GENRES: ${dominantGenres || "unknown"}
 REPEATED TRACKS: ${repeatedTracks || "none"}
 LISTENING SHIFT (short vs long term): ${shift}
 
+${engineLines}
+
 ${checkinLines}
 
-Generate the reflection now. Return only valid JSON.`;
+Generate the reflection now. Ground patterns in the data above; treat the inferred archetype, state, and metrics as soft scaffolding, never as fact. Return only valid JSON.`;
 
   let reflectionJson: {
     title: string;
