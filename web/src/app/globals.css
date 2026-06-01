@@ -461,8 +461,13 @@
   background: var(--text-subtle);
 }
 
-/* Visible focus ring across all interactive elements. */
-:focus-visible {
+/* Visible focus ring across all interactive elements.
+   Selector list increases specificity over outline-none utility class. */
+:focus-visible,
+button:focus-visible,
+a:focus-visible,
+[role="button"]:focus-visible,
+[tabindex]:focus-visible {
   outline: 2px solid var(--accent-warm);
   outline-offset: 2px;
   border-radius: 4px;

@@ -106,6 +106,20 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // Fire-and-forget classify — ensures pipeline runs even on programmatic POST.
+  // The UI (Composer.tsx) also calls classify, so this is a no-op for normal
+  // capture flow. For API/import usage, this guarantees entries don't stay stuck
+  // in "unprocessed" state.
+  const classifyUrl = new URL("/api/classify", request.nextUrl.origin);
+  fetch(classifyUrl.toString(), {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      cookie: request.headers.get("cookie") ?? "",
+    },
+    body: JSON.stringify({ entry_id: data.id }),
+  }).catch(() => {/* non-critical */});
+
   return NextResponse.json(
     { entry: validated.data, mode: "db" },
     { status: 201 },

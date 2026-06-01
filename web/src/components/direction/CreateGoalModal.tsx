@@ -3,17 +3,13 @@
 import { useState } from "react";
 import { X, Plus, Sparkles, ChevronDown } from "lucide-react";
 import type { Goal } from "@/types/db";
+import { LIFE_AREAS } from "@/components/direction/constants";
 
 interface Props {
   open: boolean;
   onClose: () => void;
   onCreated: (goal: Goal) => void;
 }
-
-const LIFE_AREAS = [
-  "health", "sleep", "energy", "money", "career", "learning",
-  "creativity", "relationships", "discipline", "emotions", "home", "meaning",
-] as const;
 
 const GOAL_TYPES = [
   { value: "outcome",    label: "Outcome",    hint: "Achieve a result" },

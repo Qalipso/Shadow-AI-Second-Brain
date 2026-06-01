@@ -4,11 +4,12 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { hasSupabase } from "@/lib/supabase/env";
 
 const CheckInInputSchema = z.object({
-  energy: z.number().int().min(0).max(5).optional(),
-  mood: z.number().int().min(-5).max(5).optional(),
-  mental_noise: z.number().int().min(0).max(5).optional(),
-  body_state: z.number().int().min(0).max(5).optional(),
-  focus: z.number().int().min(0).max(5).optional(),
+  // All fields use 1..5 scale (migration 20260529_state_1_to_5 unified the range).
+  energy: z.number().int().min(1).max(5).optional(),
+  mood: z.number().int().min(1).max(5).optional(),
+  mental_noise: z.number().int().min(1).max(5).optional(),
+  body_state: z.number().int().min(1).max(5).optional(),
+  focus: z.number().int().min(1).max(5).optional(),
   inbox_dump: z.string().max(5000).optional(),
   today_focus: z.string().max(200).optional(),
   today_focus_custom: z.string().max(500).optional(),
