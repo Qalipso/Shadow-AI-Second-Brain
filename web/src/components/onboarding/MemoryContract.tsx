@@ -55,6 +55,7 @@ export function MemoryContract() {
   function accept() {
     try {
       localStorage.setItem(STORAGE_KEY, CURRENT_VERSION);
+      window.dispatchEvent(new CustomEvent("shadow:contract:accepted"));
     } catch {}
     setVisible(false);
   }

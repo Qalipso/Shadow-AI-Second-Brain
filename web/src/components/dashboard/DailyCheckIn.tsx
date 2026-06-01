@@ -113,8 +113,10 @@ export function DailyCheckIn({
     const settings = loadSettings();
     setQuestionsPerDay(settings.questionsPerDay);
     setDraft(loadDraft());
+    const onboardingDone = localStorage.getItem("shadow:onboarded") === "true";
     if (
       autoOpen &&
+      onboardingDone &&
       settings.showQuestionsOnFirstOpen &&
       settings.checkinCadence !== "off" &&
       !isCompletedToday() &&

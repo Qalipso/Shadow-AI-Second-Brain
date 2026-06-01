@@ -46,13 +46,21 @@ export function OnboardingTour() {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    try {
-      if (localStorage.getItem(STORAGE_KEY) !== "true") {
-        setVisible(true);
+    function tryShow() {
+      try {
+        const contractDone = localStorage.getItem("shadow:terms_version") !== null;
+        const tourDone = localStorage.getItem(STORAGE_KEY) === "true";
+        if (contractDone && !tourDone) {
+          setVisible(true);
+        }
+      } catch {
+        // localStorage blocked (SSR guard, private mode, etc.)
       }
-    } catch {
-      // localStorage blocked (SSR guard, private mode, etc.)
     }
+
+    tryShow();
+    window.addEventListener("shadow:contract:accepted", tryShow);
+    return () => window.removeEventListener("shadow:contract:accepted", tryShow);
   }, []);
 
   function complete() {
