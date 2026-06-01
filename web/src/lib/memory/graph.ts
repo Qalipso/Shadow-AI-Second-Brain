@@ -83,6 +83,41 @@ export async function createMemoryEdge(
   }
 }
 
+// Create an edge only if an identical (from,to,type) edge does not already
+// exist for this user. Keeps the synthesizer idempotent across re-runs.
+export async function createEdgeIfAbsent(
+  userId: string,
+  fromNodeId: string,
+  toNodeId: string,
+  edgeType: string,
+  weight = 0.7,
+): Promise<boolean> {
+  if (fromNodeId === toNodeId) return false;
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { data: existing } = await supabase
+      .from("memory_graph_edges")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("from_node_id", fromNodeId)
+      .eq("to_node_id", toNodeId)
+      .eq("edge_type", edgeType)
+      .maybeSingle();
+    if (existing?.id) return false;
+
+    const { error } = await supabase.from("memory_graph_edges").insert({
+      user_id: userId,
+      from_node_id: fromNodeId,
+      to_node_id: toNodeId,
+      edge_type: edgeType,
+      weight,
+    });
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
 export async function getUserGraph(userId: string): Promise<{ nodes: MemoryGraphNode[]; edges: MemoryGraphEdge[] }> {
   try {
     const supabase = await createSupabaseServerClient();

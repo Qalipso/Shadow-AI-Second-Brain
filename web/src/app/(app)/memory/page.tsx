@@ -2,6 +2,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/Card";
 import { getCurrentUser } from "@/lib/auth";
 import { getUserEntries, getLifeAreas } from "@/lib/data";
+import { getUserGraph } from "@/lib/memory/graph";
 import { getMusicProfile } from "@/lib/music/data";
 import { AskShadow } from "@/components/memory/AskShadow";
 import { MemoryTimeline } from "@/components/memory/MemoryTimeline";
@@ -14,10 +15,11 @@ export const dynamic = "force-dynamic";
 
 export default async function MemoryPage() {
   const user = await getCurrentUser();
-  const [entries, areas, musicProfile] = await Promise.all([
+  const [entries, areas, musicProfile, graph] = await Promise.all([
     user ? getUserEntries(user.id, 100) : Promise.resolve([]),
     getLifeAreas(),
     user ? getMusicProfile(user.id) : Promise.resolve(null),
+    user ? getUserGraph(user.id) : Promise.resolve({ nodes: [], edges: [] }),
   ]);
 
   const areaMap = new Map(areas.map((a) => [a.id, a]));
@@ -41,7 +43,12 @@ export default async function MemoryPage() {
 
       <div className="glow-line" />
 
-      <MemoryGraphZone entryCount={entries.length} areaCount={areas.length} />
+      <MemoryGraphZone
+        entries={entries}
+        areas={areas}
+        graphNodes={graph.nodes}
+        graphEdges={graph.edges}
+      />
 
       <div className="glow-line" />
 

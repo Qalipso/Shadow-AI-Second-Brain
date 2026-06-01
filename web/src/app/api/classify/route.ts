@@ -315,6 +315,12 @@ export async function POST(request: NextRequest) {
       method: "POST",
       headers: { cookie },
     });
+    // Shadow Brain: synthesize this entry into typed memory layers + graph.
+    void fetch(`${protocol}://${host}/api/brain/synthesize`, {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({ entry_id: entryId }),
+    });
   } catch {
     // Downstream failures must not fail classify.
   }
