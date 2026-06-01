@@ -9,9 +9,25 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning: 
 ## [Unreleased]
 
 ### Added
+- **Sonic Adventure** — engine + UI layer on `/insights/sonic`:
+  - Engine (`lib/music/`): `vibe.ts` (genre→vibe config, 6 vibes), `zones.ts` (5 territory zones), `roles.ts` (6 party roles), `profile.ts` (`buildSonicProfile` — metrics + tensions + archetype + zones + party + `confidence: inferred|confirmed`)
+  - `SonicPortal` — Current Sonic State hero: archetype + sound-state line + 5 metric bars, hypothesis-toned
+  - `SonicMap` — artists grouped into zones by dominant vibe (not rank)
+  - `SonicParty` — top artists as character roles + "what they unlock"
+  - `SonicTension` — Control/Chaos, Style/Pain, Street/Digital axes (derived from vibe weights + metrics)
+  - `SonicArc` — 4-week phase timeline from snapshot history (phases via vibe engine)
+  - Emotional Anchors — Recent Repeats upgraded to anchor cards (anchor type + Add-to-Journal signal + Find-similar-mood)
+- AI Sonic Reflection enriched with engine context (archetype/state/metrics/zones/roles); generates with zero confirmed labels (labels now only raise confidence)
+- `POST /api/music/sonic-to-signals` + "Save to memory as signals" — writes reflection summary/patterns/meanings into `entries`, runs classify pipeline
+- AI-generated music signals tagged in Recent Signals via stable `raw_text` prefix + golden "Sonic Mirror" source pill (no schema change)
+- Engine unit tests (`__tests__/lib/sonic-profile.test.ts`, 11 cases)
 - Comprehensive repo documentation: `ARCHITECTURE.md`, `DECISIONS/` (10 ADRs), `FLOWS/` (7 flow docs), `ROADMAP.md`, `CONTRIBUTING.md`
 - Hidden action hero + lifecycle buttons on completed intervention cards
 - Labs UI overhaul: dramatic hero section, brighter SelfKnowledgeIndex ring, bolder TestCard hover state + ambient bloom
+
+### Changed
+- Genre→vibe mapping: generic rap/hip-hop is now a fallback applied only when no specific rule matched (fixes flex inflation on rage/emo/melodic rap)
+- `getMusicProfile` synthesizes a profile from the live Spotify connection via the analysis engine when the legacy `music_profiles` row is absent
 
 ### Changed
 - Font stack: Geist + **Playfair Display** (display) + **Inter** (body fallback) for Cyrillic support
