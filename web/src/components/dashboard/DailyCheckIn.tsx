@@ -220,8 +220,23 @@ export function DailyCheckIn({
       | { question_id: number; value_numeric: number }
       | { question_id: number; value_text: string };
 
+    // Merge explicitly set answers with defaults for untouched numeric questions.
+    // Slider shows 5 when unanswered — record that default so no answer is silently lost.
+    const answersWithDefaults: Record<number, string | number> = {};
+    for (const q of seedPick) {
+      if (!draft.skipped.includes(q.id)) {
+        const v = draft.answers[q.id];
+        if (v !== undefined) {
+          answersWithDefaults[q.id] = v;
+        } else if (q.is_state_question) {
+          // Slider shown at 5 — persist the displayed default.
+          answersWithDefaults[q.id] = 5;
+        }
+      }
+    }
+
     const payload: AnswerPayload[] = [];
-    for (const [qid, v] of Object.entries(draft.answers)) {
+    for (const [qid, v] of Object.entries(answersWithDefaults)) {
       const question_id = Number(qid);
       if (typeof v === "number") {
         payload.push({ question_id, value_numeric: v });

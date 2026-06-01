@@ -25,7 +25,7 @@ type SupabaseEntryRow = {
 };
 
 const ENTRY_COLUMNS =
-  "id, raw_text, status, created_at, summary, entry_type, emotion_primary, life_area_id, life_areas(slug)";
+  "id, raw_text, status, created_at, summary, entry_type, emotion_primary, life_area_id, life_areas!life_area_id(slug)";
 
 function toInbox(row: SupabaseEntryRow): InboxEntry {
   return {

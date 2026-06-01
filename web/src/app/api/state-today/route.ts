@@ -56,6 +56,7 @@ export async function GET() {
     mood: null,
     energy: null,
     stress: null,
+    cognitive_load: null,
   };
   // answers are sorted DESC by created_at, so first hit per key is the freshest.
   for (const a of answers ?? []) {
@@ -85,7 +86,8 @@ export async function GET() {
     mood: latestByKey.mood,
     energy: latestByKey.energy,
     stress: latestByKey.stress,
-    cognitive_load: loadCount ?? 0,
+    // Prefer user-reported focus score; fall back to open high-priority task count.
+    cognitive_load: latestByKey.cognitive_load ?? loadCount ?? 0,
     answered_count: answeredCount ?? 0,
   });
 }

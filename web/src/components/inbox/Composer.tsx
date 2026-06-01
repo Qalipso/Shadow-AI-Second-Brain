@@ -170,6 +170,7 @@ export function Composer({
         if (!res.ok) {
           const data = (await res.json().catch(() => ({}))) as { error?: string };
           setError(data.error ?? `Server returned ${res.status}.`);
+          setText(trimmed); // restore text so user doesn't lose their input
           return;
         }
         const data = (await res.json()) as {
@@ -181,6 +182,7 @@ export function Composer({
         }
       } catch (e) {
         setError((e as Error).message);
+        setText(trimmed); // restore text on network failure
         return;
       }
 
