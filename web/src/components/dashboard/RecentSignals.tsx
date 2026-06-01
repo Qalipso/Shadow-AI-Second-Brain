@@ -150,6 +150,9 @@ function SignalCard({ entry: e }: { entry: SignalEntry }) {
 
   const areaLabel = lifeAreaName(e.lifeAreaSlug);
   const shadowRead = deriveShadowRead(e);
+  // AI-generated music signals are marked by a stable raw_text prefix that the
+  // classify pipeline never overwrites.
+  const isSonic = (e.text ?? "").startsWith("Sonic Mirror");
 
   return (
     <li
@@ -173,6 +176,7 @@ function SignalCard({ entry: e }: { entry: SignalEntry }) {
       )}
 
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
+        {isSonic ? <SourcePill label="Sonic Mirror" /> : null}
         <TypePill type={e.entryType ?? "raw"} />
         {areaLabel ? <AreaPill slug={e.lifeAreaSlug!} label={areaLabel} /> : null}
         {e.emotionPrimary ? <EmotionPill emotion={e.emotionPrimary} /> : null}
@@ -233,6 +237,19 @@ function ActionItem({
       <Icon size={12} />
       {label}
     </button>
+  );
+}
+
+function SourcePill({ label }: { label: string }) {
+  const color = "#D6B874";
+  return (
+    <span
+      className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider"
+      style={{ backgroundColor: `${color}1A`, color, border: `1px solid ${color}33` }}
+    >
+      <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: color }} />
+      {label}
+    </span>
   );
 }
 

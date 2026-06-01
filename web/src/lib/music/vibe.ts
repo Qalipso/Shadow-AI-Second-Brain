@@ -45,8 +45,13 @@ const VIBE_RULES: readonly VibeRule[] = [
   { match: ["psychedelic", "vapor", "synth", "new age", "chillwave", "downtempo"], vibes: { escape: 3 } },
   { match: ["jazz", "soul", "r&b", "rnb", "funk"], vibes: { escape: 2, melancholy: 1 } },
   { match: ["melodic"], vibes: { melancholy: 2, flex: 1 } },
-  // Generic catch-alls (low weight) so unknown rap still lands somewhere.
-  { match: ["hip-hop", "hip hop", "rap"], vibes: { street: 1, flex: 1 } },
+];
+
+// Fallback rules apply ONLY when no specific rule matched a genre string.
+// Prevents the generic "rap" substring (inside "rage rap", "emo rap", etc.)
+// from inflating street/flex on already-classified genres.
+const FALLBACK_RULES: readonly VibeRule[] = [
+  { match: ["hip-hop", "hip hop", "rap"], vibes: { street: 2 } },
 ];
 
 function addVibes(acc: VibeVector, add: Partial<VibeVector>): VibeVector {
@@ -62,9 +67,19 @@ function addVibes(acc: VibeVector, add: Partial<VibeVector>): VibeVector {
 export function vibeVectorForGenre(genre: string): VibeVector {
   const g = genre.toLowerCase();
   let vec = { ...ZERO_VIBE };
+  let matchedSpecific = false;
   for (const rule of VIBE_RULES) {
     if (rule.match.some((m) => g.includes(m))) {
       vec = addVibes(vec, rule.vibes);
+      matchedSpecific = true;
+    }
+  }
+  // Only fall back to the generic rap/hip-hop mapping when nothing specific hit.
+  if (!matchedSpecific) {
+    for (const rule of FALLBACK_RULES) {
+      if (rule.match.some((m) => g.includes(m))) {
+        vec = addVibes(vec, rule.vibes);
+      }
     }
   }
   return vec;

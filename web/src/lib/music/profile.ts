@@ -8,7 +8,7 @@ import type { SpotifyArtist, SpotifyTrack, SonicArchetype, SoundState } from "@/
 import { analyzeProfile } from "@/lib/music/analysis";
 import { assignZones, type Zone } from "@/lib/music/zones";
 import { roleForGenres, type RoleKey } from "@/lib/music/roles";
-import { dominantVibe, vibeVectorForGenres, type Vibe } from "@/lib/music/vibe";
+import { dominantVibe, vibeVectorForGenres, VIBES, ZERO_VIBE, type Vibe, type VibeVector } from "@/lib/music/vibe";
 
 export type SonicConfidence = "inferred" | "confirmed";
 
@@ -18,6 +18,14 @@ export interface SonicMetrics {
   intensity: number;
   nostalgia: number;
   focus: number;
+}
+
+// Taste tension axes, each in [-1, 1]. Negative leans to the first pole,
+// positive to the second. 0 = balanced.
+export interface SonicTensions {
+  controlChaos: number; // -1 control · +1 chaos
+  stylePain: number;    // -1 style · +1 pain
+  streetDigital: number; // -1 street · +1 digital
 }
 
 export interface PartyMember {
@@ -34,6 +42,7 @@ export interface PartyMember {
 export interface SonicProfile {
   confidence: SonicConfidence;
   metrics: SonicMetrics;
+  tensions: SonicTensions;
   archetype: SonicArchetype;
   soundState: SoundState;
   zones: Zone[];
@@ -90,6 +99,24 @@ export interface SonicProfileInput {
   labels?: readonly MusicMeaningLabel[];
 }
 
+// Opposing pole ratio → [-1, 1]. 0 when both poles are empty.
+function poles(a: number, b: number): number {
+  const sum = a + b;
+  if (sum <= 0) return 0;
+  return (b - a) / sum;
+}
+
+// Derive the three taste-tension axes from aggregate vibe weights + metrics.
+function computeTensions(vibeTotal: VibeVector, metrics: SonicMetrics): SonicTensions {
+  const control = metrics.focus + metrics.repeat;
+  const chaos = metrics.intensity + metrics.exploration;
+  return {
+    controlChaos: poles(control, chaos),
+    stylePain: poles(vibeTotal.flex, vibeTotal.melancholy),
+    streetDigital: poles(vibeTotal.street, vibeTotal.focus + vibeTotal.escape),
+  };
+}
+
 export function buildSonicProfile(input: SonicProfileInput): SonicProfile {
   const {
     shortArtists,
@@ -135,15 +162,26 @@ export function buildSonicProfile(input: SonicProfileInput): SonicProfile {
       };
     });
 
+  // Aggregate vibe weights across all short-term artists for tension axes.
+  const vibeTotal: VibeVector = shortArtists.reduce<VibeVector>((acc, a) => {
+    const v = vibeVectorForGenres(a.genres);
+    const next = { ...acc };
+    for (const key of VIBES) next[key] += v[key];
+    return next;
+  }, { ...ZERO_VIBE });
+
+  const metrics: SonicMetrics = {
+    repeat: analysis.repeat_score,
+    exploration: analysis.exploration_score,
+    intensity: analysis.intensity_score,
+    nostalgia: analysis.nostalgia_score,
+    focus: analysis.focus_score,
+  };
+
   return {
     confidence: labels.length > 0 ? "confirmed" : "inferred",
-    metrics: {
-      repeat: analysis.repeat_score,
-      exploration: analysis.exploration_score,
-      intensity: analysis.intensity_score,
-      nostalgia: analysis.nostalgia_score,
-      focus: analysis.focus_score,
-    },
+    metrics,
+    tensions: computeTensions(vibeTotal, metrics),
     archetype: analysis.sonic_archetype,
     soundState: analysis.current_sound_state,
     zones,

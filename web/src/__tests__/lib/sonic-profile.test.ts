@@ -47,6 +47,11 @@ describe("vibe mapping", () => {
   it("returns null for unknown genres", () => {
     expect(dominantVibe(vibeVectorForGenres(["polka"]))).toBeNull();
   });
+  it("plain rap falls back to street, not flex (no generic inflation)", () => {
+    const v = vibeVectorForGenres(["rap"]);
+    expect(dominantVibe(v)).toBe("street");
+    expect(v.flex).toBe(0);
+  });
 });
 
 describe("zones", () => {
@@ -90,6 +95,16 @@ describe("buildSonicProfile", () => {
     expect(p.archetype).toBeTruthy();
     expect(p.soundState).toBeTruthy();
     expect(p.metrics.intensity).toBeGreaterThan(50); // rage-heavy taste
+  });
+
+  it("derives taste tensions in [-1,1]", () => {
+    const p = buildSonicProfile({ shortArtists: EDO_ARTISTS });
+    for (const v of Object.values(p.tensions)) {
+      expect(v).toBeGreaterThanOrEqual(-1);
+      expect(v).toBeLessThanOrEqual(1);
+    }
+    // rage/chaos-heavy taste should lean toward chaos (positive)
+    expect(p.tensions.controlChaos).toBeGreaterThan(0);
   });
 
   it("flips confidence to confirmed when labels exist", () => {

@@ -3,6 +3,7 @@ import {
   getSpotifyArtists,
   getSpotifyTracks,
   getLatestSnapshot,
+  getSnapshotHistory,
   getMusicMeaningLabels,
   getLatestSonicReflection,
 } from "@/lib/music/data";
@@ -18,6 +19,8 @@ import { SpotifyDisconnectPanel } from "@/components/sonic/SpotifyDisconnectPane
 import { SonicPortal } from "@/components/sonic/SonicPortal";
 import { SonicMap } from "@/components/sonic/SonicMap";
 import { SonicParty } from "@/components/sonic/SonicParty";
+import { SonicTension } from "@/components/sonic/SonicTension";
+import { SonicArc } from "@/components/sonic/SonicArc";
 import { buildSonicProfile } from "@/lib/music/profile";
 
 interface Props {
@@ -75,6 +78,7 @@ export async function SonicMirrorMain({ userId, spError, spSynced }: Props) {
     shortTracks,
     recentTracks,
     snapshot,
+    snapshotHistory,
     labels,
     reflection,
   ] = await Promise.all([
@@ -83,6 +87,7 @@ export async function SonicMirrorMain({ userId, spError, spSynced }: Props) {
     getSpotifyTracks(userId, "short_term"),
     getSpotifyTracks(userId, "recent"),
     getLatestSnapshot(userId),
+    getSnapshotHistory(userId, 8),
     getMusicMeaningLabels(userId),
     getLatestSonicReflection(userId),
   ]);
@@ -149,6 +154,8 @@ export async function SonicMirrorMain({ userId, spError, spSynced }: Props) {
           <SonicPortal profile={sonicProfile} />
           <SonicMap zones={sonicProfile.zones} />
           <SonicParty party={sonicProfile.party} />
+          <SonicTension tensions={sonicProfile.tensions} />
+          <SonicArc snapshots={snapshotHistory} />
         </>
       )}
 
