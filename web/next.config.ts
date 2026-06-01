@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 import path from "node:path";
 
 const nextConfig: NextConfig = {
+  basePath: "/shadow",
   turbopack: {
     root: path.resolve(__dirname),
   },
