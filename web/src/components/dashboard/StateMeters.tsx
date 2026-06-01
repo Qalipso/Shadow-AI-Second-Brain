@@ -132,7 +132,9 @@ function Meter({
           aria-valuemin={0}
           aria-valuemax={max}
         >
-          {value === null ? "—" : value}
+          {value === null ? (
+            <span title="Complete a check-in to see this value">—</span>
+          ) : value}
           <span className="text-zinc-700"> / {max}</span>
         </span>
       </div>

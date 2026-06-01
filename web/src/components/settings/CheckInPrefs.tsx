@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   DEFAULT_SETTINGS,
   loadSettings,
@@ -8,22 +8,35 @@ import {
   type LocalSettings,
 } from "@/lib/check-in";
 
-// Local-only check-in preferences for Phase 2.3.
-// Phase 3.4 migrates this to `user_settings.show_questions_on_first_open`.
-
 export function CheckInPrefs() {
   const [mounted, setMounted] = useState(false);
   const [s, setS] = useState<LocalSettings>(DEFAULT_SETTINGS);
+  const syncTimer = useRef<number | null>(null);
 
   useEffect(() => {
     setMounted(true);
     setS(loadSettings());
   }, []);
 
+  function persistToServer(next: LocalSettings) {
+    if (syncTimer.current) window.clearTimeout(syncTimer.current);
+    syncTimer.current = window.setTimeout(() => {
+      fetch("/api/settings", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          questions_per_day: next.questionsPerDay,
+          show_questions_on_first_open: next.showQuestionsOnFirstOpen,
+        }),
+      }).catch(() => { /* non-critical, localStorage already updated */ });
+    }, 800);
+  }
+
   function update(patch: Partial<LocalSettings>) {
     const next = { ...s, ...patch };
     setS(next);
     saveSettings(next);
+    persistToServer(next);
   }
 
   if (!mounted) return <div className="h-24 skeleton rounded-lg" />;

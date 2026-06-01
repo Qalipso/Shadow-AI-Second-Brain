@@ -408,9 +408,11 @@ export function DailyCheckIn({
               <button type="button" onClick={skip} className={TONE.ghost}>
                 Pass
               </button>
-              <button type="button" onClick={replace} className={TONE.ghost}>
-                Ask differently
-              </button>
+              {!isState && (
+                <button type="button" onClick={replace} className={TONE.ghost}>
+                  Ask differently
+                </button>
+              )}
             </div>
             <div className="flex gap-2">
               <button type="button" onClick={close} className={TONE.ghost}>

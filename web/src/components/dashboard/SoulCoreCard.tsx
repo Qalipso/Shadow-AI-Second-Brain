@@ -115,6 +115,7 @@ function LoadedState({ state }: { state: UserSoulState }) {
             <p
               className="text-[10px] font-mono uppercase tracking-widest"
               style={{ color: "var(--shadow-text-faint)" }}
+              title="Soul Core grows as you capture thoughts, complete check-ins, and finish rituals."
             >
               Soul Core
             </p>
