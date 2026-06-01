@@ -15,6 +15,7 @@ const CHIPS = [
 export function InboxShortcut() {
   const [text, setText] = useState("");
   const [state, setState] = useState<"idle" | "sending" | "extracting" | "done">("idle");
+  const [error, setError] = useState<string | null>(null);
   const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Clear timer on unmount to avoid setState on unmounted component.
@@ -25,6 +26,7 @@ export function InboxShortcut() {
     const t = text.trim();
     if (!t || state !== "idle") return;
 
+    setError(null);
     setState("sending");
 
     try {
@@ -35,6 +37,8 @@ export function InboxShortcut() {
       });
 
       if (!res.ok) {
+        // Keep text so the user can retry, but surface why nothing happened.
+        setError("Couldn't capture that. Your text is kept — tap Capture to retry.");
         setState("idle");
         return;
       }
@@ -68,12 +72,14 @@ export function InboxShortcut() {
         resetTimerRef.current = null;
       }, 2000);
     } catch {
+      setError("Network issue — your text is kept. Tap Capture to retry.");
       setState("idle");
     }
   }
 
   function pickChip(chip: string) {
     setText(chip + " ");
+    setError(null);
     setState("idle");
   }
 
@@ -82,7 +88,7 @@ export function InboxShortcut() {
       <form onSubmit={submit} className="flex flex-col gap-2">
         <input
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={(e) => { setText(e.target.value); if (error) setError(null); }}
           placeholder="Drop a thought, task, feeling, expense, meal, event, fear, or idea."
           aria-label="Quick capture"
           disabled={state === "sending"}
@@ -108,6 +114,12 @@ export function InboxShortcut() {
           )}
         </button>
       </form>
+
+      {error && (
+        <p className="text-[11px] text-[var(--state-danger)]" role="alert">
+          {error}
+        </p>
+      )}
 
       <p className="text-[11px] text-zinc-600">
         Shadow will structure it into signals, tasks, memory or Life Circle areas.

@@ -153,7 +153,7 @@ function SignalCard({ entry: e }: { entry: SignalEntry }) {
 
   return (
     <li
-      className="card-hover relative overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--bg-elev2)] px-3 py-2.5"
+      className="card-hover relative rounded-lg border border-[var(--border)] bg-[var(--bg-elev2)] px-3 py-2.5"
       style={{ borderLeftColor: accent, borderLeftWidth: 2 }}
     >
       <div className="flex items-start justify-between gap-3">

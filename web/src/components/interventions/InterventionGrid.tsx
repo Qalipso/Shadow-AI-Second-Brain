@@ -41,8 +41,6 @@ export function InterventionGrid() {
           <MagicCard className="rounded-xl" spotlightColor="rgba(126,87,194,0.12)" spotlightSize={340}>
           <Link
             href={`/interventions/${t.slug}?new=1`}
-            target="_blank"
-            rel="noopener noreferrer"
             className="group panel-ambient accent-top-line relative p-5 overflow-hidden block"
           >
             {/* Ambient violet bloom */}

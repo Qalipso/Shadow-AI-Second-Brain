@@ -4,11 +4,11 @@ import { getCurrentUser } from "@/lib/auth";
 import { getUserEntries, getLifeAreas } from "@/lib/data";
 import { getMusicProfile } from "@/lib/music/data";
 import { AskShadow } from "@/components/memory/AskShadow";
-import { MemorySearch } from "@/components/memory/MemorySearch";
 import { MemoryTimeline } from "@/components/memory/MemoryTimeline";
 import { MemoryItemsSection } from "@/components/memory/MemoryItemsSection";
 import { MusicProfileCard } from "@/components/sonic/MusicProfileCard";
 import { EmptyState } from "@/components/EmptyState";
+import { MemoryGraphZone } from "@/components/memory/MemoryGraphZone";
 
 export const dynamic = "force-dynamic";
 
@@ -35,13 +35,13 @@ export default async function MemoryPage() {
         }
       />
 
-      <Card title="Search Memory">
-        <MemorySearch />
-      </Card>
-
       <Card title="Ask Shadow">
         <AskShadow />
       </Card>
+
+      <div className="glow-line" />
+
+      <MemoryGraphZone entryCount={entries.length} areaCount={areas.length} />
 
       <div className="glow-line" />
 
