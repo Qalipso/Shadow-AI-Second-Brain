@@ -88,7 +88,7 @@ export function EntryList({ filter = "all", period = "week" }: { filter?: EntryF
       {groups.map((g) => (
         <section key={g.key}>
           <header className="flex items-center justify-between mb-2">
-            <p className="text-[11px] uppercase tracking-[0.25em] text-zinc-500">
+            <p className="text-[11px] uppercase tracking-[0.25em] text-zinc-500" suppressHydrationWarning>
               {dayLabel(g.key)}
             </p>
             <span className="text-[11px] text-zinc-600">{g.items.length}</span>
@@ -159,7 +159,7 @@ function EntryItem({ entry }: { entry: InboxEntry }) {
         {entry.emotionPrimary ? <Pill>{entry.emotionPrimary}</Pill> : null}
       </div>
       <div className="mt-2 flex items-center justify-between gap-2 text-[11px] text-zinc-600">
-        <span>{relativeTime(entry.createdAt)}</span>
+        <span suppressHydrationWarning>{relativeTime(entry.createdAt)}</span>
         {overflow ? (
           <button
             type="button"

@@ -190,19 +190,21 @@ export function Composer({
       // surfaced as inline errors but don't block local persistence.
       if (dbEntryId) {
         try {
-          const cls = await fetch("/api/classify", {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({ entry_id: dbEntryId }),
-          });
+          const clsBody = JSON.stringify({ entry_id: dbEntryId });
+          const clsHeaders = { "content-type": "application/json" };
+          let cls = await fetch("/api/classify", { method: "POST", headers: clsHeaders, body: clsBody });
+          // Single retry on transient server errors (502/503).
+          if (!cls.ok && (cls.status === 502 || cls.status === 503)) {
+            await new Promise<void>((r) => setTimeout(r, 1500));
+            cls = await fetch("/api/classify", { method: "POST", headers: clsHeaders, body: clsBody });
+          }
           if (!cls.ok) {
-            const data = (await cls.json().catch(() => ({}))) as {
-              error?: string;
-            };
             track(EVENTS.PARSE_FAILED, { status: cls.status });
-            setError(
-              `Classify ${cls.status}: ${data.error ?? "unknown error"}`,
-            );
+            const friendlyMsg =
+              cls.status === 429
+                ? "Entry saved. Too many requests — wait a moment."
+                : "Entry saved. Classification unavailable right now.";
+            setError(friendlyMsg);
           } else {
             // Parse classification payload for inline reveal card.
             const data = (await cls.json().catch(() => ({}))) as ClassifyResponse;
@@ -241,8 +243,8 @@ export function Composer({
               // Embedding failures are non-critical, silently ignore.
             });
           }
-        } catch (e) {
-          setError(`Classify: ${(e as Error).message}`);
+        } catch {
+          setError("Entry saved. Classification unavailable — check your connection.");
         }
       }
     });
@@ -256,7 +258,7 @@ export function Composer({
     }
   }
 
-  const remaining = 8000 - text.length;
+  const remaining = 8000 - text.trim().length;
   const tooLong = remaining < 0;
 
   return (
@@ -264,7 +266,7 @@ export function Composer({
       <textarea
         ref={taRef}
         value={text}
-        onChange={(e) => setText(e.target.value)}
+        onChange={(e) => { setText(e.target.value); if (error) setError(null); }}
         onKeyDown={onKeyDown}
         placeholder={PLACEHOLDER}
         rows={4}
@@ -330,7 +332,16 @@ export function Composer({
       </div>
 
       {error ? (
-        <p className="mt-3 text-xs text-[var(--state-danger)]">{error}</p>
+        <div className="mt-3 flex items-start justify-between gap-2">
+          <p className="text-xs text-[var(--state-danger)]">{error}</p>
+          <button
+            type="button"
+            onClick={() => setError(null)}
+            className="shrink-0 text-[10px] text-zinc-500 hover:text-zinc-200 transition-colors"
+          >
+            Dismiss
+          </button>
+        </div>
       ) : null}
 
       {reveal ? (

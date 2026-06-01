@@ -173,7 +173,7 @@ function CheckInCard({ checkin, index }: { checkin: TodayCheckin; index: number 
           <p className="text-[10px] uppercase tracking-[0.25em] text-zinc-600">
             Sync #{index}
           </p>
-          <p className="text-sm text-zinc-400 mt-0.5">{completedAt}</p>
+          <p className="text-sm text-zinc-400 mt-0.5" suppressHydrationWarning>{completedAt}</p>
         </div>
       </div>
 

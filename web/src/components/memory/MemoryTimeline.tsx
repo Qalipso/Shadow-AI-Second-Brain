@@ -126,7 +126,7 @@ export function MemoryTimeline({ entries, areaMap }: Props) {
                         )}
                       </div>
                     </div>
-                    <span className="text-[10px] text-zinc-600 shrink-0">
+                    <span className="text-[10px] text-zinc-600 shrink-0" suppressHydrationWarning>
                       {relativeTime(e.created_at)}
                     </span>
                   </div>
