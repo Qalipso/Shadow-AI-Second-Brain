@@ -11,6 +11,7 @@ import {
   DEMO_MODE_COOKIE,
   DEMO_MODE_VALUE,
   DEMO_USER_EMAIL,
+  DEMO_USER_PASSWORD,
 } from "@/lib/supabase/env";
 import { safeRedirect } from "@/lib/safe-redirect";
 
@@ -142,6 +143,30 @@ export async function signUpWithPassword(
     return { next };
   }
   return { info: "Check your inbox to confirm the account." };
+}
+
+export async function signInAsDemo(
+  _prevState: LoginState,
+  _formData: FormData,
+): Promise<LoginState> {
+  if (!hasDemoSupabase()) {
+    return { error: "Demo mode not configured." };
+  }
+  if (!DEMO_USER_PASSWORD) {
+    return { error: "Demo credentials not set." };
+  }
+
+  const supabase = await createLoginClient(true);
+  const { error } = await supabase.auth.signInWithPassword({
+    email: DEMO_USER_EMAIL,
+    password: DEMO_USER_PASSWORD,
+  });
+  if (error) {
+    return { error: error.message };
+  }
+
+  await setDemoModeCookie(true);
+  return { next: "/dashboard" };
 }
 
 export async function sendMagicLink(

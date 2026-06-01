@@ -1,3 +1,5 @@
+export const maxDuration = 30;
+
 import { getCurrentUser } from "@/lib/auth";
 import { listInterventions } from "@/lib/interventions/queries";
 import { PageHeader } from "@/components/PageHeader";

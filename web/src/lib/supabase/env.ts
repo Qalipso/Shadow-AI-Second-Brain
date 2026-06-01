@@ -28,3 +28,5 @@ export const DEMO_MODE_COOKIE = "shadow-mode";
 export const DEMO_MODE_VALUE = "demo";
 export const DEMO_USER_EMAIL =
   process.env.DEMO_USER_EMAIL ?? "demo@shadow.app";
+export const DEMO_USER_PASSWORD =
+  process.env.DEMO_USER_PASSWORD ?? undefined;

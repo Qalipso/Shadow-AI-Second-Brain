@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { LoginForm } from "./LoginForm";
-import { hasSupabase } from "@/lib/supabase/env";
+import { hasSupabase, hasDemoSupabase } from "@/lib/supabase/env";
 import { safeRedirect } from "@/lib/safe-redirect";
 
 // Top-level metadata for /login.
@@ -60,6 +60,7 @@ export default async function LoginPage({
   const redirectTo = safeRedirect(sp.redirect_to);
   const serverError = sp.error ? ERROR_COPY[sp.error] ?? sp.error : undefined;
   const envOk = hasSupabase();
+  const showDemoButton = hasDemoSupabase() && Boolean(process.env.DEMO_USER_PASSWORD);
   const prefillEmail = sanitizeEmail(sp.email);
   const source = sanitizeSource(sp.source);
   const sourceCopy = source ? SOURCE_COPY[source] : undefined;
@@ -112,6 +113,7 @@ export default async function LoginPage({
             serverError={serverError}
             prefillEmail={prefillEmail}
             prefillMode={prefillMode}
+            showDemoButton={showDemoButton}
           />
         )}
 

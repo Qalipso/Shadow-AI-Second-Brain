@@ -6,6 +6,7 @@ import {
   signInWithPassword,
   signUpWithPassword,
   sendMagicLink,
+  signInAsDemo,
   type LoginState,
 } from "./actions";
 
@@ -18,11 +19,13 @@ export function LoginForm({
   serverError,
   prefillEmail,
   prefillMode,
+  showDemoButton = false,
 }: {
   redirectTo: string;
   serverError?: string;
   prefillEmail?: string;
   prefillMode?: Mode;
+  showDemoButton?: boolean;
 }) {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>(prefillMode ?? "password");
@@ -35,6 +38,10 @@ export function LoginForm({
     INITIAL,
   );
   const [mlState, mlAction, mlPending] = useActionState(sendMagicLink, INITIAL);
+  const [demoState, demoAction, demoPending] = useActionState(
+    signInAsDemo,
+    INITIAL,
+  );
 
   const current =
     mode === "password" ? pwState : mode === "signup" ? suState : mlState;
@@ -54,7 +61,15 @@ export function LoginForm({
     }
   }, [current, router]);
 
+  useEffect(() => {
+    if (demoState?.next) {
+      router.replace(demoState.next);
+      router.refresh();
+    }
+  }, [demoState, router]);
+
   return (
+    <>
     <form action={action} className="space-y-4">
       <input type="hidden" name="redirect_to" value={redirectTo} />
 
@@ -139,5 +154,35 @@ export function LoginForm({
         </button>
       </div>
     </form>
+
+    {showDemoButton ? (
+      <div className="mt-6">
+        <div className="relative flex items-center">
+          <div className="flex-1 border-t border-zinc-800" />
+          <span className="px-3 text-[10px] uppercase tracking-[0.25em] text-zinc-600">
+            or
+          </span>
+          <div className="flex-1 border-t border-zinc-800" />
+        </div>
+        <form action={demoAction} className="mt-4">
+          <button
+            type="submit"
+            disabled={demoPending}
+            className="w-full rounded-md border border-zinc-700 bg-transparent text-zinc-300 px-4 py-2.5 text-sm font-medium hover:border-zinc-500 hover:text-zinc-100 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {demoPending ? "Entering demo…" : "Try Demo"}
+          </button>
+          {demoState?.error ? (
+            <p className="mt-2 text-xs text-[var(--state-danger)]">
+              {demoState.error}
+            </p>
+          ) : null}
+        </form>
+        <p className="mt-2 text-center text-[10px] text-zinc-600">
+          Read-only sandbox — no sign-up required
+        </p>
+      </div>
+    ) : null}
+    </>
   );
 }

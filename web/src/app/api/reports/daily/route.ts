@@ -22,9 +22,9 @@ import {
 // Pass ?force=1 to regenerate.
 
 const ReportResponseSchema = z.object({
-  body: z.string().min(50),
+  body: z.string().min(10),
   confidence: z.number().min(0).max(1),
-  headline: z.string().max(120).optional(),
+  headline: z.string().max(200).optional(),
 });
 
 const MAX_TOKENS = 1200;

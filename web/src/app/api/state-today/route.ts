@@ -67,6 +67,30 @@ export async function GET() {
     }
   }
 
+  // Also pull from daily_checkins (7-step flow, 0-5 scale → normalise to 0-10).
+  const { data: checkin } = await supabase
+    .from("daily_checkins")
+    .select("energy, mood, focus")
+    .eq("user_id", user.id)
+    .gte("created_at", isoStart)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (checkin) {
+    // Prefer question_answers values (1-10) if present; fall back to checkin (0-5 × 2).
+    if (latestByKey.energy === null && checkin.energy !== null) {
+      latestByKey.energy = checkin.energy * 2;
+    }
+    if (latestByKey.mood === null && checkin.mood !== null) {
+      // mood in daily_checkins is -5..5 → remap to 0-10
+      latestByKey.mood = checkin.mood + 5;
+    }
+    if (latestByKey.cognitive_load === null && checkin.focus !== null) {
+      latestByKey.cognitive_load = checkin.focus * 2;
+    }
+  }
+
   // Cognitive load = open tasks with priority high|critical.
   const { count: loadCount } = await supabase
     .from("tasks")

@@ -1,3 +1,5 @@
+export const maxDuration = 30;
+
 import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/Card";
 import { getCurrentUser } from "@/lib/auth";
