@@ -15,6 +15,10 @@ import { EmotionalLabelSelector } from "@/components/sonic/EmotionalLabelSelecto
 import { SonicReflectionCard } from "@/components/sonic/SonicReflectionCard";
 import { MusicMemoryPreview } from "@/components/sonic/MusicMemoryPreview";
 import { SpotifyDisconnectPanel } from "@/components/sonic/SpotifyDisconnectPanel";
+import { SonicPortal } from "@/components/sonic/SonicPortal";
+import { SonicMap } from "@/components/sonic/SonicMap";
+import { SonicParty } from "@/components/sonic/SonicParty";
+import { buildSonicProfile } from "@/lib/music/profile";
 
 interface Props {
   userId: string;
@@ -67,17 +71,29 @@ export async function SonicMirrorMain({ userId, spError, spSynced }: Props) {
   // Connected — load all data in parallel
   const [
     shortArtists,
+    longArtists,
     shortTracks,
+    recentTracks,
     snapshot,
     labels,
     reflection,
   ] = await Promise.all([
     getSpotifyArtists(userId, "short_term"),
+    getSpotifyArtists(userId, "long_term"),
     getSpotifyTracks(userId, "short_term"),
+    getSpotifyTracks(userId, "recent"),
     getLatestSnapshot(userId),
     getMusicMeaningLabels(userId),
     getLatestSonicReflection(userId),
   ]);
+
+  const sonicProfile = buildSonicProfile({
+    shortArtists,
+    longArtists,
+    shortTracks,
+    recentTracks,
+    labels,
+  });
 
   const artistLabelCounts: Record<string, number> = {};
   const trackLabelCounts: Record<string, number> = {};
@@ -127,6 +143,15 @@ export async function SonicMirrorMain({ userId, spError, spSynced }: Props) {
 
   return (
     <div className="space-y-4">
+      {/* Sonic Adventure — engine-driven hero + map + party */}
+      {sonicProfile.hasEnoughData && (
+        <>
+          <SonicPortal profile={sonicProfile} />
+          <SonicMap zones={sonicProfile.zones} />
+          <SonicParty party={sonicProfile.party} />
+        </>
+      )}
+
       {/* Top artists */}
       {shortArtists.length > 0 && (
         <TopArtistsPanel
