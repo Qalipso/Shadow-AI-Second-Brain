@@ -8,6 +8,22 @@ Shadow is an interface to your own *shadow* — hidden patterns, overloads, desi
 
 ---
 
+## Vision
+
+Most tools store what you tell them. Shadow tries to *understand* it.
+
+The long-term bet: a personal cognitive layer that grows a structured model of who you are — your values, goals, projects, people, emotional loops, risks — from the messy stream of daily life, and reflects it back when it matters. Not another place to file things; a system that remembers, connects, and notices on your behalf.
+
+**Goal:** reduce the cognitive cost of self-management to near-zero at the point of capture, and convert scattered input into compounding self-knowledge over time.
+
+**Principles of the vision:**
+- **Effortless in, structured out** — you dump raw thought; Shadow does the organizing.
+- **Memory that compounds** — every capture enriches a typed memory + knowledge graph, not a flat log.
+- **Reflection, not surveillance** — patterns are surfaced as hypotheses to consider, never verdicts. Inferred ≠ confirmed.
+- **You own the model** — your data, your graph, deletable and exportable; secrets never leave the server.
+
+---
+
 ## Status
 
 `MVP` · single-user · text-first · dogfooded daily
@@ -21,6 +37,8 @@ Shadow is an interface to your own *shadow* — hidden patterns, overloads, desi
 | Daily report | ✅ Live |
 | Weekly review | ✅ Live |
 | RAG memory (pgvector) | ✅ Live |
+| Shadow Brain (memory synthesizer) | ✅ Live |
+| Memory Graph (typed knowledge graph) | ✅ Live |
 | ShadowOrb chat | ✅ Live |
 | Interventions (4 tools) | ✅ Live |
 | Labs (self-knowledge tests) | ✅ Live |
@@ -44,6 +62,17 @@ One textarea. Type whatever's in your head. No fields, no tags, no folders. Shad
 
 ### Memory
 Every entry is embedded (`text-embedding-3-small`) and stored in `pgvector`. ShadowOrb queries semantic similarity + time decay to bring back relevant past context when answering questions.
+
+### Shadow Brain — memory synthesizer
+A dedicated AI entity that runs after each capture (and on demand). It turns raw entries into three layers of durable memory:
+- **Typed memory items** — 8 layers: `profile · behavioral · preference · relationship · goal · current_state · insight · episodic`
+- **Graph nodes** — 15 entity types (values, goals, projects, people, habits, emotions, patterns, risks…), deduplicated by label
+- **Graph edges** — 10 relation types (`supports · blocks · triggers · causes · belongs_to · contradicts · related_to`…)
+
+It also cross-links new memory to semantically similar past entries via pgvector, so connections form across time that a single pass can't see. A junk/injection filter keeps test noise and prompt-injection strings out of the model, and everything inferred is tagged as a hypothesis (`inferred`) vs user-confirmed fact.
+
+### Memory Graph
+An interactive React Flow visualization of the knowledge graph above — typed nodes clustered by kind, relation-colored labeled edges, click any node to inspect its type, weight, and connections. Falls back to a capture-by-life-area view before the brain has synthesized anything.
 
 ### Patterns
 Daily report at end of day. Weekly review every Sunday. Surfaces:
@@ -79,7 +108,8 @@ Spotify integration. Reads your listening as emotional signal. Detects mood shif
 | Auth | Supabase Auth (email + magic link) |
 | LLM routing | `gpt-4o-mini` (default), `gpt-4o` (deep) |
 | Animation | Framer Motion |
-| Fonts | Playfair Display + Inter (Cyrillic) |
+| Graph UI | React Flow (`@xyflow/react`) |
+| Fonts | Geist + Fraunces |
 | Testing | Vitest (unit) + Playwright (E2E) |
 | Deploy | Vercel |
 

@@ -16,3 +16,4 @@ Sequence:
 - 001-foundation-skeleton — Phase 0 finalize + Phase 1 kickoff
 - 002-database-rls-wiring — Phase 2 migrations, RLS, auth proxy, wired pages
 - 003-skeleton-rebuild-memory-hardening — Phase 1.5 stability pass: web/ rebuilt from scratch with minimal deps, error boundaries, dev-safe.sh OOM-resilient launcher. Includes `IMPROVEMENT_PLAN.md` covering Phases 2.1 → 6.
+- 004-memory-graph-sonic-brain — BUG-01..05 fixes, live React Flow memory graph, Sonic Mirror connection fix, Shadow Brain memory synthesizer (typed layers + graph), Phase 2 (archetype engine, semantic edges, richer node panel). Includes `TEST_CHECKLIST.md`.
