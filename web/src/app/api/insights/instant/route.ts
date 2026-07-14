@@ -2,7 +2,13 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { hasSupabase } from "@/lib/supabase/env";
-import { estimateCostUsd, getLlm, hasLlm, MODELS } from "@/lib/llm";
+import { estimateCostUsd } from "@/lib/llm";
+import {
+  getConfiguredProvider,
+  getConfiguredProviderName,
+  hasProvider,
+  resolveModel,
+} from "@/lib/llm-provider";
 import {
   isOverDailyCap,
   maxDailyUsd,
@@ -26,7 +32,8 @@ const BodySchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
-  if (!hasSupabase() || !hasLlm()) {
+  const providerName = getConfiguredProviderName();
+  if (!hasSupabase() || !hasProvider(providerName)) {
     return NextResponse.json({ error: "Service unavailable." }, { status: 503 });
   }
 
@@ -87,21 +94,20 @@ Where follow_up is one practical question Shadow could ask next.`;
   let insightText = "";
   let followUp = "";
 
-  const model = MODELS.classify;
+  const model = resolveModel("classify", providerName);
   const llmStarted = Date.now();
   try {
-    const openai = getLlm();
-    const resp = await openai.chat.completions.create({
+    const resp = await getConfiguredProvider().complete({
       model,
-      max_tokens: 200,
+      maxTokens: 200,
       temperature: 0.4,
-      response_format: { type: "json_object" },
+      jsonMode: true,
       messages: [{ role: "user", content: prompt }],
     });
-    const tokensIn = resp.usage?.prompt_tokens ?? 0;
-    const tokensOut = resp.usage?.completion_tokens ?? 0;
+    const tokensIn = resp.usage.tokensIn;
+    const tokensOut = resp.usage.tokensOut;
     const costUsd = estimateCostUsd(model, tokensIn, tokensOut);
-    const raw = resp.choices[0]?.message?.content ?? "{}";
+    const raw = resp.text || "{}";
     const json = JSON.parse(raw) as { insight?: string; follow_up?: string };
     insightText = json.insight ?? "";
     followUp = json.follow_up ?? "";

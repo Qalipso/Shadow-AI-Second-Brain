@@ -1,7 +1,14 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { hasSupabase } from "@/lib/supabase/env";
-import { estimateCostUsd, getLlm, hasLlm, MODELS } from "@/lib/llm";
+import { estimateCostUsd } from "@/lib/llm";
+import {
+  getConfiguredProvider,
+  getConfiguredProviderName,
+  hasProvider,
+  resolveModel,
+  LLMRateLimited,
+} from "@/lib/llm-provider";
 import { isOverDailyCap, maxDailyUsd, recordLlmCall, todaysCostUsd } from "@/lib/cost-ledger";
 import { getCheckinStreak } from "@/lib/data";
 import { SYSTEM_PROMPT, buildWeeklyUserPrompt } from "@/ai/prompts/weekly-digest";
@@ -26,8 +33,12 @@ export async function POST(_request: NextRequest) {
   if (!hasSupabase()) {
     return NextResponse.json({ error: "Supabase env missing." }, { status: 503 });
   }
-  if (!hasLlm()) {
-    return NextResponse.json({ error: "OPENAI_API_KEY missing." }, { status: 503 });
+  const providerName = getConfiguredProviderName();
+  if (!hasProvider(providerName)) {
+    return NextResponse.json(
+      { error: `${providerName === "anthropic" ? "ANTHROPIC_API_KEY" : "OPENAI_API_KEY"} missing.` },
+      { status: 503 },
+    );
   }
 
   const supabase = await createSupabaseServerClient();
@@ -81,8 +92,7 @@ export async function POST(_request: NextRequest) {
 
   const userPrompt = buildWeeklyUserPrompt({ weekStart, weekEnd, streak, checkins, entrySamples });
 
-  const openai = getLlm();
-  const model = MODELS.rag_answer;
+  const model = resolveModel("rag_answer", providerName);
   const startedAt = Date.now();
 
   let raw = "";
@@ -91,21 +101,21 @@ export async function POST(_request: NextRequest) {
   let costUsd = 0;
 
   try {
-    const resp = await openai.chat.completions.create({
+    const resp = await getConfiguredProvider().complete({
       model,
-      max_tokens: 400,
+      maxTokens: 400,
       temperature: 0.7,
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: userPrompt },
       ],
     });
-    tokensIn = resp.usage?.prompt_tokens ?? 0;
-    tokensOut = resp.usage?.completion_tokens ?? 0;
+    tokensIn = resp.usage.tokensIn;
+    tokensOut = resp.usage.tokensOut;
     costUsd = estimateCostUsd(model, tokensIn, tokensOut);
-    raw = resp.choices[0]?.message?.content?.trim() ?? "";
+    raw = resp.text;
   } catch (e) {
-    const msg = (e as Error).message;
+    const msg = e instanceof Error ? e.message : String(e);
     await recordLlmCall({
       userId: user.id,
       task: "weekly_digest",
@@ -114,6 +124,9 @@ export async function POST(_request: NextRequest) {
       ok: false,
       error: msg,
     });
+    if (e instanceof LLMRateLimited) {
+      return NextResponse.json({ error: `LLM rate limited: ${msg}` }, { status: 429 });
+    }
     return NextResponse.json({ error: `LLM call failed: ${msg}` }, { status: 502 });
   }
 
