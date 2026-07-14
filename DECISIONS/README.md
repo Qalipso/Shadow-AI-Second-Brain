@@ -18,6 +18,7 @@ Format follows [Michael Nygard's ADR template](https://cognitect.com/blog/2011/1
 | [008](./008-streaming-responses.md) | SSE streaming for chat and reports | Accepted |
 | [009](./009-immutability-in-components.md) | Immutable state pattern across React tree | Accepted |
 | [010](./010-cyrillic-font-stack.md) | Playfair Display + Inter for Cyrillic support | Accepted |
+| [011](./011-llm-provider-abstraction.md) | Provider-agnostic LLM layer (OpenAI + Anthropic adapters) | Accepted, partial rollout |
 
 ## How to add a new ADR
 
