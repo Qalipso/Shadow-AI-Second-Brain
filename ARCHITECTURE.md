@@ -109,8 +109,9 @@ Deep query detection: `isDeepQuery()` heuristic in `ai/prompts/shadow-chat.ts` c
 
 **Provider abstraction (ADR-011, partial):** `src/lib/llm-provider/` normalizes OpenAI and
 Anthropic behind one `LLMProvider.complete()` interface, selected via `LLM_PROVIDER` env var.
-`[Implemented]` on `classify` and `shadow/chat` only. `[Planned]` on the other 21 LLM call
-sites — they still call `lib/llm.ts`'s `getLlm()` directly. See ADR-011's Consequences for the
+`[Implemented]` on `classify`, `shadow/chat`, `score-areas`, `reports/daily`, and `memory/ask`
+(5 of 23). `[Planned]` on the other 18 LLM call sites — they still call `lib/llm.ts`'s
+`getLlm()` directly. See ADR-011's Consequences for the
 full list.
 
 ### 5. Cost Ledger

@@ -51,10 +51,11 @@ Extend the interface when a real call site needs `stream()`, not speculatively.
   interface shape (`complete`/normalized errors) for consistency between the two
   artifacts.
 - **Migrate all 23 call sites in one PR** — larger blast radius on a live, dogfooded app
-  for no added proof value; a thin vertical slice (2 representative routes: `classify`,
-  which uses JSON mode, and `shadow/chat`, the flagship user-facing path) proves the
-  abstraction holds for both plain-text and structured-JSON completion without the risk
-  of a single PR touching every LLM-calling route at once.
+  for no added proof value; a thin vertical slice first (`classify`, JSON mode, and
+  `shadow/chat`, the flagship user-facing path), then a second batch once the pattern
+  held (`score-areas`, `reports/daily`, `memory/ask` — all JSON-mode, proving the
+  pattern generalizes beyond the original two routes) proves the abstraction without
+  the risk of a single PR touching every LLM-calling route at once.
 - **Put the abstraction inside `lib/llm.ts` directly** — would require renaming/moving
   the file (`llm.ts` already exists at that path; a `llm/` directory would collide with
   it in module resolution) or a much larger diff rewriting all 23 existing imports for
@@ -63,19 +64,26 @@ Extend the interface when a real call site needs `stream()`, not speculatively.
 ## Consequences
 
 - **Positive**
-  - `classify` and `shadow/chat` now genuinely run against either provider via one env
-    var, with a real test proving it (`__tests__/lib/llm-provider.test.ts`).
+  - `classify`, `shadow/chat`, `score-areas`, `reports/daily`, and `memory/ask` (5 of
+    23) now genuinely run against either provider via one env var, with a real test
+    proving the underlying adapters (`__tests__/lib/llm-provider.test.ts`) — the
+    second batch (`score-areas`/`reports/daily`/`memory/ask`) reused the exact same
+    `getConfiguredProvider().complete()` call shape as the first two with zero changes
+    needed to the abstraction itself, which is the actual proof the interface is right,
+    not just that it compiles once.
   - Rate-limit errors are now distinguishable from other failures (`429` response
-    instead of a blanket `502`) on the 2 migrated routes.
+    instead of a blanket `502`) on 4 of the 5 migrated routes (`score-areas` keeps its
+    original graceful-degradation behavior — continue with factual-only scores on any
+    LLM failure — unchanged by design, not an oversight).
   - `PRICING` in `lib/llm.ts` now has Anthropic entries, so cost tracking
     (`ai_processing_logs`) stays accurate if the provider is swapped.
 - **Negative — named, not hidden**
-  - **21 of 23 LLM call sites are not migrated** (`admin/reembed`, `admin/rpc-test`,
-    `brain/synthesize`, `checkin/generate-initiative`, `embed`, `insights/instant`,
-    `interventions/generate`, `labs/sessions/[id]/complete`, `memory/ask`,
+  - **18 of 23 LLM call sites are still not migrated** (`admin/reembed`,
+    `admin/rpc-test`, `brain/synthesize`, `checkin/generate-initiative`, `embed`,
+    `insights/instant`, `interventions/generate`, `labs/sessions/[id]/complete`,
     `memory/search`, `music/insight`, `music/sonic-reflection`,
-    `profile/ai-summary/regenerate`, `reports/daily`, `reports/weekly`,
-    `score-areas`, `ai-brain/{initiatives,question-generator,summary-generator,synthesizer}`,
+    `profile/ai-summary/regenerate`, `reports/weekly`,
+    `ai-brain/{initiatives,question-generator,summary-generator,synthesizer}`,
     `interventions/journal`). They still call `getLlm()` directly and are unaffected by
     `LLM_PROVIDER`. Migrating the rest is `[Not now]` — follow-up work, not silently
     implied by this ADR's title.
