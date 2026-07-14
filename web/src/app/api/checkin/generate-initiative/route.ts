@@ -1,7 +1,13 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { hasSupabase } from "@/lib/supabase/env";
-import { getLlm, hasLlm, MODELS, estimateCostUsd } from "@/lib/llm";
+import { estimateCostUsd } from "@/lib/llm";
+import {
+  getConfiguredProvider,
+  getConfiguredProviderName,
+  hasProvider,
+  resolveModel,
+} from "@/lib/llm-provider";
 import { isOverDailyCap, recordLlmCall } from "@/lib/cost-ledger";
 
 // POST /api/checkin/generate-initiative
@@ -69,7 +75,8 @@ export async function POST(req: NextRequest) {
   const energyLow = checkin.energy !== null && checkin.energy <= 2;
   const noisyMind = checkin.mental_noise !== null && checkin.mental_noise >= 4;
 
-  if (!hasLlm() || await isOverDailyCap(user.id)) {
+  const providerName = getConfiguredProviderName();
+  if (!hasProvider(providerName) || await isOverDailyCap(user.id)) {
     const defaultInitiative = buildDefaultInitiative(energyLow, noisyMind, checkin);
     await saveInitiative(supabase, user.id, checkin.id, defaultInitiative);
     await supabase.from("daily_checkins").update({
@@ -104,27 +111,26 @@ Output JSON:
 
   const userPrompt = buildInitiativePrompt(checkin, goals, recentCheckins, memories);
 
-  const model = MODELS.classify; // gpt-4o-mini is sufficient
+  const model = resolveModel("classify", providerName); // gpt-4o-mini/haiku is sufficient
   const startedAt = Date.now();
   let tokensIn = 0, tokensOut = 0, costUsd = 0;
 
   try {
-    const openai = getLlm();
-    const resp = await openai.chat.completions.create({
+    const resp = await getConfiguredProvider().complete({
       model,
-      max_tokens: 400,
+      maxTokens: 400,
       temperature: 0.7,
-      response_format: { type: "json_object" },
+      jsonMode: true,
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ],
     });
-    tokensIn = resp.usage?.prompt_tokens ?? 0;
-    tokensOut = resp.usage?.completion_tokens ?? 0;
+    tokensIn = resp.usage.tokensIn;
+    tokensOut = resp.usage.tokensOut;
     costUsd = estimateCostUsd(model, tokensIn, tokensOut);
 
-    const rawText = resp.choices[0]?.message?.content ?? "{}";
+    const rawText = resp.text || "{}";
     const initiative = JSON.parse(rawText);
 
     await recordLlmCall({ userId: user.id, task: "today_initiative", model, latencyMs: Date.now() - startedAt, tokensIn, tokensOut, costUsd, ok: true });

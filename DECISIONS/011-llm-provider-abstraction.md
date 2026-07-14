@@ -64,29 +64,35 @@ Extend the interface when a real call site needs `stream()`, not speculatively.
 ## Consequences
 
 - **Positive**
-  - `classify`, `shadow/chat`, `score-areas`, `reports/daily`, and `memory/ask` (5 of
-    23) now genuinely run against either provider via one env var, with a real test
-    proving the underlying adapters (`__tests__/lib/llm-provider.test.ts`) — the
-    second batch (`score-areas`/`reports/daily`/`memory/ask`) reused the exact same
-    `getConfiguredProvider().complete()` call shape as the first two with zero changes
-    needed to the abstraction itself, which is the actual proof the interface is right,
-    not just that it compiles once.
+  - `classify`, `shadow/chat`, `score-areas`, `reports/daily`, `memory/ask`,
+    `reports/weekly`, `insights/instant`, `interventions/generate`, and
+    `checkin/generate-initiative` (9 of 23) now genuinely run against either provider
+    via one env var, with a real test proving the underlying adapters
+    (`__tests__/lib/llm-provider.test.ts`) — each successive batch reused the exact
+    same `getConfiguredProvider().complete()` call shape with zero changes needed to
+    the abstraction itself, which is the actual proof the interface is right, not just
+    that it compiled once. `checkin/generate-initiative` in particular proves the
+    interface composes cleanly with a pre-existing graceful-degradation branch
+    (`!hasProvider(providerName) || isOverDailyCap` → default initiative, unchanged).
   - Rate-limit errors are now distinguishable from other failures (`429` response
-    instead of a blanket `502`) on 4 of the 5 migrated routes (`score-areas` keeps its
-    original graceful-degradation behavior — continue with factual-only scores on any
-    LLM failure — unchanged by design, not an oversight).
+    instead of a blanket `502`) on the routes where that distinction matters;
+    `score-areas` and `checkin/generate-initiative` keep their original graceful
+    degradation on any LLM failure — unchanged by design, not an oversight.
   - `PRICING` in `lib/llm.ts` now has Anthropic entries, so cost tracking
     (`ai_processing_logs`) stays accurate if the provider is swapped.
 - **Negative — named, not hidden**
-  - **18 of 23 LLM call sites are still not migrated** (`admin/reembed`,
-    `admin/rpc-test`, `brain/synthesize`, `checkin/generate-initiative`, `embed`,
-    `insights/instant`, `interventions/generate`, `labs/sessions/[id]/complete`,
+  - **14 of 23 LLM call sites are still not migrated** (`admin/reembed`,
+    `admin/rpc-test`, `brain/synthesize`, `embed`, `labs/sessions/[id]/complete`,
     `memory/search`, `music/insight`, `music/sonic-reflection`,
-    `profile/ai-summary/regenerate`, `reports/weekly`,
+    `profile/ai-summary/regenerate`,
     `ai-brain/{initiatives,question-generator,summary-generator,synthesizer}`,
     `interventions/journal`). They still call `getLlm()` directly and are unaffected by
-    `LLM_PROVIDER`. Migrating the rest is `[Not now]` — follow-up work, not silently
-    implied by this ADR's title.
+    `LLM_PROVIDER`. Note: `embed`, `admin/reembed`, and `memory/search` use the
+    Embeddings API, not chat completion — they're outside this interface's scope
+    entirely (`LLMProvider.complete()` doesn't cover embeddings), not just unmigrated;
+    extending the abstraction to embeddings is a separate, undecided question.
+    Migrating the rest is `[Not now]` — follow-up work, not silently implied by this
+    ADR's title.
   - `AnthropicProvider` is **`[Not verified]`** against the live Anthropic API — no key
     configured in this environment. It's exercised structurally (correct request shape,
     correct response parsing, correct error normalization against real SDK error

@@ -1,7 +1,14 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { hasSupabase } from "@/lib/supabase/env";
-import { estimateCostUsd, getLlm, hasLlm, MODELS } from "@/lib/llm";
+import { estimateCostUsd } from "@/lib/llm";
+import {
+  getConfiguredProvider,
+  getConfiguredProviderName,
+  hasProvider,
+  resolveModel,
+  LLMRateLimited,
+} from "@/lib/llm-provider";
 import {
   isOverDailyCap,
   maxDailyUsd,
@@ -56,8 +63,12 @@ export async function POST(request: NextRequest) {
   if (!hasSupabase()) {
     return NextResponse.json({ error: "Supabase env missing." }, { status: 503 });
   }
-  if (!hasLlm()) {
-    return NextResponse.json({ error: "OPENAI_API_KEY missing." }, { status: 503 });
+  const providerName = getConfiguredProviderName();
+  if (!hasProvider(providerName)) {
+    return NextResponse.json(
+      { error: `${providerName === "anthropic" ? "ANTHROPIC_API_KEY" : "OPENAI_API_KEY"} missing.` },
+      { status: 503 },
+    );
   }
 
   const supabase = await createSupabaseServerClient();
@@ -111,8 +122,7 @@ export async function POST(request: NextRequest) {
     friction,
   });
 
-  const model = MODELS.classify; // fast/cheap is enough; outputs are short JSON
-  const openai = getLlm();
+  const model = resolveModel("classify", providerName); // fast/cheap is enough; outputs are short JSON
   const startedAt = Date.now();
   let tokensIn = 0;
   let tokensOut = 0;
@@ -120,27 +130,27 @@ export async function POST(request: NextRequest) {
   let resultJson: unknown = null;
 
   try {
-    const resp = await openai.chat.completions.create({
+    const resp = await getConfiguredProvider().complete({
       model,
-      max_tokens: 900,
+      maxTokens: 900,
       temperature: 0.75,
-      response_format: { type: "json_object" },
+      jsonMode: true,
       messages: [
         { role: "system", content: system },
         { role: "user", content: userMsg },
       ],
     });
-    tokensIn = resp.usage?.prompt_tokens ?? 0;
-    tokensOut = resp.usage?.completion_tokens ?? 0;
+    tokensIn = resp.usage.tokensIn;
+    tokensOut = resp.usage.tokensOut;
     costUsd = estimateCostUsd(model, tokensIn, tokensOut);
-    const text = resp.choices[0]?.message?.content?.trim() ?? "";
+    const text = resp.text.trim();
     try {
       resultJson = JSON.parse(text);
     } catch {
       throw new Error("Model did not return valid JSON.");
     }
   } catch (e) {
-    const msg = (e as Error).message;
+    const msg = e instanceof Error ? e.message : String(e);
     await recordLlmCall({
       userId: user.id,
       task: "classify",
@@ -149,6 +159,9 @@ export async function POST(request: NextRequest) {
       ok: false,
       error: msg,
     });
+    if (e instanceof LLMRateLimited) {
+      return NextResponse.json({ error: `LLM rate limited: ${msg}` }, { status: 429 });
+    }
     return NextResponse.json({ error: `LLM call failed: ${msg}` }, { status: 502 });
   }
 
