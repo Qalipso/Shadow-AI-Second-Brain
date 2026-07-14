@@ -1,5 +1,4 @@
 @import "tailwindcss";
-@import "../styles/design-tokens.css";
 
 /* Shadow palette — dark only. Minimal tokens. */
 :root {
