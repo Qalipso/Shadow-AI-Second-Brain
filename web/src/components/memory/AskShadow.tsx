@@ -2,9 +2,16 @@
 
 import { useCallback, useState } from "react";
 
+type Source = {
+  id: string;
+  snippet: string;
+  created_at: string;
+};
+
 type AnswerResult = {
   answer: string;
   cited_entries: string[];
+  sources: Source[];
   confidence: number;
   matched: number;
 };
@@ -92,6 +99,17 @@ export function AskShadow() {
               </span>
             )}
           </div>
+          {result.sources.length > 0 && (
+            <div className="border-t border-[var(--border)] pt-2 space-y-1">
+              <p className="text-[10px] text-zinc-600">Grounded in:</p>
+              {result.sources.map((s) => (
+                <p key={s.id} className="text-[11px] text-zinc-500 leading-snug">
+                  &ldquo;{s.snippet}
+                  {s.snippet.length >= 140 ? "…" : ""}&rdquo;
+                </p>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

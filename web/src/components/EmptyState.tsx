@@ -13,12 +13,12 @@ export function EmptyState({ headline, sub, cta }: Props) {
     <div className="flex flex-col items-center justify-center py-16 px-6 text-center gap-3">
       <p
         className="text-sm font-medium"
-        style={{ color: "var(--dt-ghost)", letterSpacing: "0.02em" }}
+        style={{ color: "var(--text-muted)", letterSpacing: "0.02em" }}
       >
         {headline}
       </p>
       {sub && (
-        <p className="text-[11px]" style={{ color: "var(--dt-fog-text)" }}>
+        <p className="text-[11px]" style={{ color: "var(--text-subtle)" }}>
           {sub}
         </p>
       )}

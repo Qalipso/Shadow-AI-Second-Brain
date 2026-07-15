@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { X, Check, ChevronRight, SkipForward } from "lucide-react";
 import { Modal } from "@/components/Modal";
 import { StateSliders, type StateValues } from "./StateSliders";
+import type { Habit, Goal } from "@/types/db";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -16,9 +17,6 @@ export type CheckInWizardProps = {
   onClose: () => void;
   pendingQuestion?: PendingQuestion | null;
 };
-
-type Habit = { id: string; name: string; description?: string | null };
-type Goal = { id: string; title: string; status?: string | null };
 
 const TODAY_FOCUS_OPTIONS = [
   "Complete a specific task",
@@ -86,7 +84,7 @@ export function CheckInWizard({ onClose, pendingQuestion }: CheckInWizardProps) 
       .catch(() => {});
     fetch("/api/goals")
       .then((r) => r.json())
-      .then((d: { goals?: Goal[] }) => { if (d.goals) setGoals(d.goals.filter((g) => g.status !== "completed" && g.status !== "archived")); })
+      .then((d: { goals?: Goal[] }) => { if (d.goals) setGoals(d.goals.filter((g) => g.status !== "completed" && g.status !== "abandoned")); })
       .catch(() => {});
   }, []);
 

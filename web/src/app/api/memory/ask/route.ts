@@ -97,6 +97,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       answer: "I don't have enough memory to answer that yet. Keep capturing, and I'll build context over time.",
       cited_entries: [],
+      sources: [],
       confidence: 0,
       matched: 0,
     });
@@ -193,9 +194,22 @@ export async function POST(request: NextRequest) {
     ok: true,
   });
 
+  // Resolve cited entry IDs against the entries already fetched for the
+  // memory block, so the client can show what actually grounded the answer
+  // instead of opaque UUIDs (issue #25) — no extra DB round trip needed.
+  const citedIds = new Set(result.cited_entries ?? []);
+  const sources = matchedEntries
+    .filter((e) => citedIds.has(e.id))
+    .map((e) => ({
+      id: e.id,
+      snippet: (e.summary ?? e.raw_text).slice(0, 140),
+      created_at: e.created_at,
+    }));
+
   return NextResponse.json({
     answer: result.answer,
     cited_entries: result.cited_entries ?? [],
+    sources,
     confidence: result.confidence ?? 0.5,
     matched: matchedEntries.length,
     usage: {

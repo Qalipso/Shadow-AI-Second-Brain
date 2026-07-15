@@ -256,7 +256,10 @@ export type AiProcessingLog = z.infer<typeof AiProcessingLogSchema>;
 
 // ─── Direction: Goals, Missions, Tasks ────────────────────────────────────
 
-export const GoalStatusSchema = z.enum(["active", "paused", "completed", "abandoned"]);
+// Matches the DB CHECK constraint exactly (supabase/migrations/20260516_direction.sql:23) —
+// "blocked" was missing here, meaning any goal in that real, reachable status would fail
+// zod validation anywhere this schema is used to parse a response (issue #14 fix pass).
+export const GoalStatusSchema = z.enum(["active", "paused", "completed", "blocked", "abandoned"]);
 export type GoalStatus = z.infer<typeof GoalStatusSchema>;
 
 export const GoalTypeSchema = z.enum(["outcome","identity","recovery","skill","project","experiment"]);
