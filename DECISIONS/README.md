@@ -19,6 +19,9 @@ Format follows [Michael Nygard's ADR template](https://cognitect.com/blog/2011/1
 | [009](./009-immutability-in-components.md) | Immutable state pattern across React tree | Accepted |
 | [010](./010-cyrillic-font-stack.md) | Playfair Display + Inter for Cyrillic support | Accepted |
 | [011](./011-llm-provider-abstraction.md) | Provider-agnostic LLM layer (OpenAI + Anthropic adapters) | Accepted, partial rollout |
+| [013](./013-swr-shared-data-layer.md) | SWR for shared server-data state; keep the rest as-is | Accepted, partial rollout |
+
+Note: 012 is reserved by [PR #29](https://github.com/Qalipso/Shadow-AI-Second-Brain/pull/29) (memory-graph-scope ADR), open in parallel — this index will have a merge conflict against that PR by design; resolve by keeping both rows.
 
 ## How to add a new ADR
 
