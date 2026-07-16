@@ -92,6 +92,11 @@ Used by:
 - `/api/reports/weekly` (weekly review)
 - `/api/score-areas` (life area scoring)
 
+**Memory graph (`memory_graph_nodes`/`memory_graph_edges`) is not part of this pipeline.** It's
+real, DB-enforced infrastructure (15 node types, 10 edge types) written by `ai-brain/synthesizer.ts`
+and rendered at `/memory` via React Flow, but `buildMemoryContext` above never reads it — this is
+a deliberate scope decision, not an oversight. See ADR-012.
+
 ### 4. Model Routing
 **Lib:** `src/lib/llm.ts`
 
