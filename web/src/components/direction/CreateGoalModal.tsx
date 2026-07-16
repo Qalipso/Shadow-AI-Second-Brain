@@ -4,6 +4,7 @@ import { useState } from "react";
 import { X, Plus, Sparkles, ChevronDown } from "lucide-react";
 import type { Goal } from "@/types/db";
 import { LIFE_AREAS } from "@/components/direction/constants";
+import { useModalBehavior } from "@/components/useModalBehavior";
 
 interface Props {
   open: boolean;
@@ -127,6 +128,8 @@ export function CreateGoalModal({ open, onClose, onCreated }: Props) {
   const [aiSuggestions, setAiSuggestions] = useState<AiSuggestions | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
 
+  const dialogRef = useModalBehavior<HTMLDivElement>({ open, onClose });
+
   if (!open) return null;
 
   const isValid = title.trim().length > 0;
@@ -234,9 +237,11 @@ export function CreateGoalModal({ open, onClose, onCreated }: Props) {
 
       {/* Modal */}
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label="Create goal"
+        tabIndex={-1}
         className="anim-scale-in fixed inset-x-4 top-1/2 -translate-y-1/2 z-50 rounded-2xl max-h-[92vh] overflow-y-auto md:left-1/2 md:-translate-x-1/2 md:max-w-lg md:inset-x-auto scrollbar-hide"
         style={{
           background: "rgba(9, 8, 16, 0.98)",

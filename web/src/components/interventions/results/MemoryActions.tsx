@@ -1,7 +1,8 @@
 "use client";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import type { GeneratedResult } from "./ResultView";
 import type { InterventionType } from "../types";
+import { useModalBehavior } from "@/components/useModalBehavior";
 
 // Build a human-readable preview of what will be saved
 function buildPreview(
@@ -56,6 +57,8 @@ export function MemoryActions({
   const [error, setError] = useState<string | null>(null);
 
   const preview = buildPreview(type, result, inputSummary);
+  const closePreview = useCallback(() => setShowPreview(false), []);
+  const dialogRef = useModalBehavior<HTMLDivElement>({ open: showPreview, onClose: closePreview });
 
   const handleSave = async () => {
     setSaving(true);
@@ -106,6 +109,10 @@ export function MemoryActions({
           onClick={() => setShowPreview(false)}
         >
           <div
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            tabIndex={-1}
             className="relative max-w-md w-full rounded-xl p-5 space-y-4"
             style={{
               background: "linear-gradient(160deg, rgba(15,14,22,0.99), rgba(10,9,15,0.99))",
