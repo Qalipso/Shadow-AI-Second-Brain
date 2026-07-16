@@ -31,7 +31,7 @@ export async function GET() {
     return NextResponse.json({ error: "Profile parse error." }, { status: 500 });
   }
 
-  // Strip tokens before sending to client
-  const { access_token: _a, refresh_token: _r, ...safe } = parsed.data;
-  return NextResponse.json({ profile: safe });
+  // access_token/refresh_token no longer exist on this schema or table
+  // (issue #2 — the columns that held them in plaintext were dropped).
+  return NextResponse.json({ profile: parsed.data });
 }
