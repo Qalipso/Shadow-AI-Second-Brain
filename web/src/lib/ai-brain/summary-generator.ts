@@ -9,6 +9,8 @@ export type AISummaryOutput = {
   values_json: object;
   communication_preferences_json: object;
   current_state_json: object;
+  tokensIn: number;
+  tokensOut: number;
 };
 
 const SYSTEM_PROMPT = `You are Shadow's profile analyst. Shadow is a personal life analytics assistant that helps users understand themselves better.
@@ -264,5 +266,7 @@ export async function regenerateAISummary(userId: string): Promise<AISummaryOutp
     values_json: { shadow_interaction_rules: shadowRules, data_sources_used: dataSources },
     communication_preferences_json: communicationStyle as object,
     current_state_json: { current_state_note: currentStateNote },
+    tokensIn: resp.usage?.prompt_tokens ?? 0,
+    tokensOut: resp.usage?.completion_tokens ?? 0,
   };
 }

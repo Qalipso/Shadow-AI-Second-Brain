@@ -6,11 +6,16 @@ import { hasSupabase } from "@/lib/supabase/env";
 // POST /api/memory/items
 // Save a memory item from an inbox capture or other source.
 // Uses existing memory_items table (source_type = 'inbox').
+//
+// source_type is NOT client-settable (issue #23): it's the only field that
+// distinguishes user-authored from AI-synthesized memory, and this is the
+// one user-facing write path, so it's hardcoded below rather than accepted
+// from the request body — a client can no longer POST source_type:
+// "brain_synthesis" to impersonate AI-authored provenance.
 
 const BodySchema = z.object({
   title: z.string().min(1).max(200),
   content: z.string().min(1).max(2000),
-  source_type: z.string().default("inbox"),
   source_id: z.string().uuid().optional(),
   tags: z.array(z.string()).max(10).default([]),
   importance: z.number().int().min(1).max(5).default(3),
@@ -48,7 +53,7 @@ export async function POST(request: NextRequest) {
       user_id: user.id,
       title: parsed.data.title,
       content: parsed.data.content,
-      source_type: parsed.data.source_type,
+      source_type: "inbox",
       source_id: parsed.data.source_id ?? null,
       tags: parsed.data.tags,
       importance: parsed.data.importance,

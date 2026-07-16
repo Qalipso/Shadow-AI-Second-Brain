@@ -5,7 +5,8 @@ import { hasLlm, estimateCostUsd, MODELS } from "@/lib/llm";
 import { regenerateAISummary } from "@/lib/ai-brain/summary-generator";
 import { detectKnowledgeGaps } from "@/lib/ai-brain/knowledge-gaps";
 import { generateQuestionFromGap } from "@/lib/ai-brain/question-generator";
-import { recordLlmCall } from "@/lib/cost-ledger";
+import { recordLlmCall, isOverDailyCap, maxDailyUsd, todaysCostUsd } from "@/lib/cost-ledger";
+import { checkRateLimit, getRouteConfig } from "@/lib/rate-limit";
 
 // POST /api/profile/ai-summary/regenerate
 export async function POST() {
@@ -22,6 +23,26 @@ export async function POST() {
   } = await supabase.auth.getUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  }
+
+  const rl = checkRateLimit(`${user.id}:ai-summary-regen`, getRouteConfig("ai-summary-regen"));
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: "Rate limit exceeded. Slow down." },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfter) } },
+    );
+  }
+
+  if (await isOverDailyCap(user.id)) {
+    const spent = await todaysCostUsd(user.id);
+    return NextResponse.json(
+      {
+        error: "Daily LLM cost cap reached.",
+        spent_usd: Number(spent.toFixed(4)),
+        cap_usd: maxDailyUsd(),
+      },
+      { status: 429 },
+    );
   }
 
   const startedAt = Date.now();
@@ -119,13 +140,16 @@ export async function POST() {
     }
   }
 
-  // Track LLM cost (approx — we don't have token counts here since regenerateAISummary doesn't expose them)
+  // Track LLM cost using real token counts from the completion (was a hardcoded
+  // estimate before — issue #19).
   await recordLlmCall({
     userId: user.id,
     task: "ai_summary_regen",
     model: MODELS.daily_report,
     latencyMs,
-    costUsd: estimateCostUsd(MODELS.daily_report, 1500, 600),
+    tokensIn: summaryResult.tokensIn,
+    tokensOut: summaryResult.tokensOut,
+    costUsd: estimateCostUsd(MODELS.daily_report, summaryResult.tokensIn, summaryResult.tokensOut),
     ok: true,
   });
 
