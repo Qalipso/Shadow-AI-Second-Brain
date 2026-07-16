@@ -206,7 +206,7 @@ OAuth flow (PKCE) → store encrypted refresh token → periodic sync of top tra
 | Row leakage | RLS policies on every table, scoped to `auth.uid()` |
 | Cost runaway | `MAX_DAILY_LLM_USD` enforced in `lib/cost-ledger.ts` |
 | Spotify token theft | Refresh tokens encrypted with `lib/music/crypto.ts` |
-| Rate limiting | `lib/rate-limit.ts` per-IP token bucket on classify/chat |
+| Rate limiting | `lib/rate-limit.ts` — per-user (not per-IP) fixed-window counter (not a token bucket), applied to every LLM-calling route. **Not a real mitigation on serverless**: it's an in-process `Map`, so each cold-started/concurrent-warm instance has its own counter — see issue #5. Correct for single-instance deployments only; replace with `@upstash/ratelimit` (sketched in the file's own header comment) before relying on it as an actual control. |
 | XSS | React escaping + DOMPurify on any markdown rendering |
 | Auth | Supabase magic link only; no password storage |
 
