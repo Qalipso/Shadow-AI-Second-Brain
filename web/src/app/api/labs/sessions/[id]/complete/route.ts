@@ -167,6 +167,7 @@ export async function POST(
               importance: Math.min(5, Math.max(1, mc.importance ?? 3)),
               stability: mc.stability ?? "stable",
               tags: mc.tags ?? [],
+              memory_type: "insight" as const, // explicit (issue #22) — self-reflection results are genuinely insights, not a fallback default
               embedding,
             };
           }),
