@@ -121,7 +121,12 @@ If you find a security issue, **do not open a public issue** — email `security
 ## Adding a New Migration
 
 1. Create file: `supabase/migrations/YYYYMMDD_<short_name>.sql`
-2. Include both DDL and RLS in the same file
+2. **Include both DDL and RLS in the same file — no exceptions, even for a "quick" table.**
+   `20260520_labs.sql` shipped 8 tables (including `labs_answers` and `profile_ai_summary`,
+   both holding real user data) with RLS added two migrations later in a separate file. If that
+   sequence had run against a database already serving traffic, those tables were
+   world-readable/writable via PostgREST for however long the gap lasted (issue #7). There's no
+   CI check enforcing this yet — it's on the reviewer to actually look, every time.
 3. Test locally: `supabase db reset && supabase db push`
 4. Document in `db/README.md` if adding a new table
 
