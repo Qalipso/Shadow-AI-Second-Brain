@@ -16,12 +16,12 @@ import { InboxEntrySchema, type InboxEntry } from "./types";
 
 import { listLocalEntries } from "./local";
 
-type Mode = "db" | "local" | "loading";
-
 const ResponseSchema = z.object({
   entries: z.array(InboxEntrySchema),
   mode: z.enum(["db", "local"]),
 });
+
+type Mode = "db" | "local" | "loading";
 
 async function fetcher(limit: number): Promise<{ entries: InboxEntry[]; mode: "db" | "local" }> {
   const res = await fetch(`/api/entries?limit=${limit}`, { cache: "no-store" });

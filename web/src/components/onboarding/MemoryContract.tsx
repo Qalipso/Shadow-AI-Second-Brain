@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Shield, Database, Eye, Trash2 } from "lucide-react";
+import { useModalBehavior } from "@/components/useModalBehavior";
 
 const STORAGE_KEY = "shadow:terms_version";
 const CURRENT_VERSION = "2026-05-20";
@@ -60,6 +61,11 @@ export function MemoryContract() {
     setVisible(false);
   }
 
+  // No-op onClose: this dialog has no "dismiss without accepting" concept
+  // (no X/cancel), so ESC intentionally does nothing rather than silently
+  // acting as consent. Still gets focus-trap + scroll-lock from the hook.
+  const dialogRef = useModalBehavior<HTMLDivElement>({ open: visible, onClose: () => {} });
+
   if (!visible) return null;
 
   return (
@@ -69,9 +75,11 @@ export function MemoryContract() {
 
       {/* Dialog */}
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="memory-contract-title"
+        tabIndex={-1}
         className="fixed inset-0 z-[70] flex items-center justify-center p-4"
       >
         <div

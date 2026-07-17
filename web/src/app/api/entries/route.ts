@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { hasSupabase } from "@/lib/supabase/env";
+import { jsonError } from "@/lib/api-response";
 import {
   CreateEntryInputSchema,
   InboxEntrySchema,
@@ -160,7 +161,7 @@ export async function GET(request: NextRequest) {
     .returns<SupabaseEntryRow[]>();
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return jsonError(500, "Failed to load entries.", { logDetail: error.message, logTag: "[entries:GET]" });
   }
 
   const entries = (data ?? [])

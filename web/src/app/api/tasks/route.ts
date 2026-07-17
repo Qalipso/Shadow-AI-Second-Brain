@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { hasSupabase } from "@/lib/supabase/env";
+import { jsonError } from "@/lib/api-response";
 import { TaskSchema } from "@/types/db";
 
 const CreateTaskSchema = z.object({
@@ -33,7 +34,7 @@ export async function GET(req: NextRequest) {
   if (status) q = q.eq("status", status);
 
   const { data, error } = await q;
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return jsonError(500, "Failed to load tasks.", { logDetail: error.message, logTag: "[tasks:GET]" });
 
   const tasks = (data ?? [])
     .map((row: unknown) => TaskSchema.safeParse(row))
@@ -57,7 +58,7 @@ export async function POST(req: NextRequest) {
     .from("tasks")
     .insert({ user_id: user.id, ...parsed.data })
     .select("*").single();
-  if (error || !data) return NextResponse.json({ error: error?.message ?? "Insert failed." }, { status: 500 });
+  if (error || !data) return jsonError(500, "Failed to create task.", { logDetail: error?.message, logTag: "[tasks:POST]" });
   const out = TaskSchema.safeParse(data);
   if (!out.success) return NextResponse.json({ error: "Validation failed." }, { status: 500 });
   return NextResponse.json({ task: out.data }, { status: 201 });
