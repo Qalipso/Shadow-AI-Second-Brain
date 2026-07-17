@@ -7,6 +7,7 @@ import {
   updateInterventionFlags,
 } from "@/lib/interventions/queries";
 import { recordInterventionActivity } from "@/lib/interventions/journal";
+import { insertMemoryItems } from "@/lib/memory/write";
 
 // POST /api/interventions/[id]/save-memory
 // Extracts user patterns from the intervention and stores them as memory items.
@@ -162,27 +163,28 @@ export async function POST(request: NextRequest, { params }: Ctx) {
     .eq("source_id", id);
   const existingTitles = new Set((existing ?? []).map((e) => e.title as string));
 
-  const rows = memories
-    .filter((m) => !existingTitles.has(m.title))
-    .map((m) => ({
-      user_id: user.id,
+  const toSave = memories.filter((m) => !existingTitles.has(m.title));
+
+  if (toSave.length === 0) {
+    await updateInterventionFlags(user.id, id, { saved_to_memory: true });
+    return NextResponse.json({ saved: true, count: 0, skipped: memories.length });
+  }
+
+  // explicit "behavioral": these are extracted energy/mood/friction patterns,
+  // not generic insights — the previous silent DB-default miscategorized them.
+  const count = await insertMemoryItems(
+    user.id,
+    toSave.map((m) => ({
       source_type: "intervention",
       source_id: id,
       title: m.title,
       content: m.content,
       importance: m.importance,
-      stability: "stable",
       tags: m.tags,
-    }));
-
-  if (rows.length === 0) {
-    await updateInterventionFlags(user.id, id, { saved_to_memory: true });
-    return NextResponse.json({ saved: true, count: 0, skipped: memories.length });
-  }
-
-  const { error: insertErr } = await supabase.from("memory_items").insert(rows);
-  if (insertErr) {
-    console.error("[interventions:save-memory]", insertErr.message);
+      memory_type: "behavioral",
+    })),
+  );
+  if (count === 0) {
     return NextResponse.json({ error: "Insert failed." }, { status: 500 });
   }
 
@@ -192,8 +194,8 @@ export async function POST(request: NextRequest, { params }: Ctx) {
     userId: user.id,
     intervention,
     activity: "saved_to_memory",
-    extraNote: `${rows.length} pattern${rows.length === 1 ? "" : "s"} extracted.`,
+    extraNote: `${count} pattern${count === 1 ? "" : "s"} extracted.`,
   });
 
-  return NextResponse.json({ saved: true, count: rows.length });
+  return NextResponse.json({ saved: true, count });
 }

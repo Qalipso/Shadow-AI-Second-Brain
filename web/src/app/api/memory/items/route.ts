@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { hasSupabase } from "@/lib/supabase/env";
+import { insertMemoryItem } from "@/lib/memory/write";
 
 // POST /api/memory/items
 // Save a memory item from an inbox capture or other source.
@@ -47,23 +48,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   }
 
-  const { data: item, error } = await supabase
-    .from("memory_items")
-    .insert({
-      user_id: user.id,
-      title: parsed.data.title,
-      content: parsed.data.content,
-      source_type: "inbox",
-      source_id: parsed.data.source_id ?? null,
-      tags: parsed.data.tags,
-      importance: parsed.data.importance,
-      stability: "stable",
-    })
-    .select("id, title, source_type, created_at")
-    .single();
+  const item = await insertMemoryItem(user.id, {
+    title: parsed.data.title,
+    content: parsed.data.content,
+    source_type: "inbox",
+    source_id: parsed.data.source_id,
+    tags: parsed.data.tags,
+    importance: parsed.data.importance,
+    memory_type: "insight", // explicit: a manual capture is a generic saved thought
+  });
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!item) {
+    return NextResponse.json({ error: "Insert failed." }, { status: 500 });
   }
 
   return NextResponse.json({ item }, { status: 201 });

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import Image from "next/image";
 import { loadSettings, CADENCE_MS } from "@/lib/check-in";
+import { useModalBehavior } from "@/components/useModalBehavior";
 
 type Source = { id: string; snippet: string; created_at: string };
 type Msg = {
@@ -112,15 +113,11 @@ export function ShadowOrb({ notificationCount = 0 }: ShadowOrbProps) {
     }
   }, [open]);
 
-  // ESC closes panel.
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open]);
+  // ESC + focus-trap + scroll-lock, shared with the other dialogs (issue #13).
+  // Initial-focus-on-open is handled by the effect above instead (targets the
+  // chat input specifically, not just the first focusable element).
+  const closeOrb = useCallback(() => setOpen(false), []);
+  const dialogRef = useModalBehavior<HTMLDivElement>({ open, onClose: closeOrb });
 
   // Proactive hint — only after 30s, max 1/session, 3/day.
   useEffect(() => {
@@ -313,8 +310,11 @@ export function ShadowOrb({ notificationCount = 0 }: ShadowOrbProps) {
             style={{ background: "rgba(6,5,14,0.62)" }}
           />
           <div
+            ref={dialogRef}
             role="dialog"
+            aria-modal="true"
             aria-label="Shadow assistant"
+            tabIndex={-1}
             className="fixed right-0 top-0 bottom-0 z-50 w-full sm:max-w-md bg-[var(--bg-elev1)] border-l border-zinc-800 text-zinc-100 flex flex-col"
           >
             <header className="px-6 py-5 border-b border-[var(--border)] flex items-start justify-between gap-4">

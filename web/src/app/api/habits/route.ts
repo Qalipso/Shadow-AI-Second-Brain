@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { hasSupabase } from "@/lib/supabase/env";
+import { jsonError } from "@/lib/api-response";
 import { HabitSchema } from "@/types/db";
 
 const CreateHabitInputSchema = z.object({
@@ -44,7 +45,7 @@ export async function GET() {
     .eq("is_active", true)
     .order("created_at", { ascending: true });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return jsonError(500, "Failed to load habits.", { logDetail: error.message, logTag: "[habits:GET]" });
 
   const habits = (data ?? [])
     .map((row: unknown) => HabitSchema.safeParse(row))
@@ -87,7 +88,7 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (error || !data) {
-    return NextResponse.json({ error: error?.message ?? "Insert failed." }, { status: 500 });
+    return jsonError(500, "Failed to create habit.", { logDetail: error?.message, logTag: "[habits:POST]" });
   }
 
   const habit = HabitSchema.safeParse(data);
