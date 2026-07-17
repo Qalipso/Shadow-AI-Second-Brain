@@ -106,14 +106,18 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // Best-effort: save insight as memory_item
+  // Best-effort: save insight as memory_item.
+  // `title` is required (NOT NULL) — this insert was silently failing on
+  // every call before this fix (issue #18 named the upsert below; this
+  // plain insert had the identical missing-title bug, found while fixing it).
   const insightContent = parsed.data.insight_text ?? parsed.data.ai_question_answer;
   if (insightContent?.trim()) {
     try {
-      await supabase
+      const { error } = await supabase
         .from("memory_items")
         .insert({
           user_id: user.id,
+          title: insightContent.trim().slice(0, 120),
           content: insightContent.trim(),
           memory_type: "insight",
           importance: 3,
@@ -121,8 +125,9 @@ export async function POST(request: NextRequest) {
           source_type: "checkin",
           source_id: checkinId,
         });
-    } catch {
-      // non-critical
+      if (error) console.error("[checkin] insight memory_items insert failed", error.message);
+    } catch (e) {
+      console.error("[checkin] insight memory_items insert failed", (e as Error).message);
     }
   }
 
@@ -139,11 +144,12 @@ export async function POST(request: NextRequest) {
 
     if (stateContent) {
       try {
-        await supabase
+        const { error } = await supabase
           .from("memory_items")
           .upsert(
             {
               user_id: user.id,
+              title: `State check-in — ${today}`,
               content: stateContent,
               memory_type: "current_state",
               importance: 2,
@@ -154,8 +160,9 @@ export async function POST(request: NextRequest) {
             },
             { onConflict: "user_id,date,memory_type" },
           );
-      } catch {
-        // non-critical
+        if (error) console.error("[checkin] current_state memory_items upsert failed", error.message);
+      } catch (e) {
+        console.error("[checkin] current_state memory_items upsert failed", (e as Error).message);
       }
     }
   }

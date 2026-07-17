@@ -4,7 +4,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { hasSupabase } from "@/lib/supabase/env";
 import { hasLlm } from "@/lib/llm";
 import { generateEmbedding, embedModel } from "@/lib/embeddings";
-import { recordLlmCall } from "@/lib/cost-ledger";
+import { recordLlmCall, isOverDailyCap, maxDailyUsd, todaysCostUsd } from "@/lib/cost-ledger";
 import { checkRateLimit, getRouteConfig } from "@/lib/rate-limit";
 
 // POST /api/embed { entry_id }
@@ -50,11 +50,26 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   }
 
+  // Issue #4 (partial): this route was the one LLM-calling route with zero
+  // guard at all — rate-limit.ts even had an unused "embed" config entry
+  // sitting dead. The check-then-act race in isOverDailyCap itself is a
+  // separate, larger fix tracked on its own; this closes the total-bypass.
   const rl = checkRateLimit(`${user.id}:embed`, getRouteConfig("embed"));
   if (!rl.ok) {
     return NextResponse.json(
       { error: "Rate limit exceeded. Slow down." },
       { status: 429, headers: { "Retry-After": String(rl.retryAfter) } },
+    );
+  }
+  if (await isOverDailyCap(user.id)) {
+    const spent = await todaysCostUsd(user.id);
+    return NextResponse.json(
+      {
+        error: "Daily LLM cost cap reached.",
+        spent_usd: Number(spent.toFixed(4)),
+        cap_usd: maxDailyUsd(),
+      },
+      { status: 429 },
     );
   }
 
