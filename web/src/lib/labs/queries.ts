@@ -2,6 +2,7 @@ import "server-only";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { hasSupabase } from "@/lib/supabase/env";
 import type { LabsTest, LabsQuestion, LabsAnswerOption, LabsSession, LabsResult, ProfileAiSummary, MemoryItem } from "@/types/db";
+import { insertMemoryItems as insertMemoryItemsShared } from "@/lib/memory/write";
 
 // ─── Tests ─────────────────────────────────────────────────────────────────
 
@@ -170,12 +171,13 @@ export async function getProfileAiSummary(userId: string): Promise<ProfileAiSumm
 
 // embedding is stored separately via 20260521_labs_memory_vector.sql migration.
 // Strip it here to stay compatible with the base table (no vector column yet).
+// Delegates the actual insert to the shared lib/memory/write.ts path (#22) —
+// this wrapper stays only for its embedding-stripping + existing call-site shape.
 export async function insertMemoryItems(
   items: Array<Omit<MemoryItem, "id" | "created_at" | "updated_at"> & { embedding?: unknown }>,
 ): Promise<void> {
   if (!hasSupabase() || items.length === 0) return;
-  const supabase = await createSupabaseServerClient();
-  const rows = items.map(({ embedding: _emb, ...rest }) => rest);
-  const { error } = await supabase.from("memory_items").insert(rows);
-  if (error) console.error("[labs:insertMemoryItems]", error.message);
+  const userId = items[0].user_id;
+  const rows = items.map(({ embedding: _emb, user_id: _uid, ...rest }) => rest);
+  await insertMemoryItemsShared(userId, rows);
 }

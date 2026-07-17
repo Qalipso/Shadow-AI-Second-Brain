@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { z } from "zod";
 import { PageHeader } from "@/components/PageHeader";
 import { CreateGoalModal } from "./CreateGoalModal";
-import type { Goal, Mission, Task } from "@/types/db";
+import { GoalSchema, MissionSchema, TaskSchema, type Goal, type Mission, type Task } from "@/types/db";
 import { GoalCard, MissionCard, TaskCard } from "./cards";
 import { GoalDetailDrawer } from "./GoalDetailDrawer";
 import { MissionDetailDrawer } from "./MissionDetailDrawer";
@@ -35,9 +36,12 @@ export function DirectionView() {
       fetch("/api/tasks").then((r) => r.json()).catch(() => ({})),
     ])
       .then(([g, m, t]) => {
-        setGoals(g.goals ?? []);
-        setMissions(m.missions ?? []);
-        setTasks(t.tasks ?? []);
+        const goalsParsed = z.object({ goals: z.array(GoalSchema) }).safeParse(g);
+        const missionsParsed = z.object({ missions: z.array(MissionSchema) }).safeParse(m);
+        const tasksParsed = z.object({ tasks: z.array(TaskSchema) }).safeParse(t);
+        setGoals(goalsParsed.success ? goalsParsed.data.goals : []);
+        setMissions(missionsParsed.success ? missionsParsed.data.missions : []);
+        setTasks(tasksParsed.success ? tasksParsed.data.tasks : []);
       })
       .finally(() => setLoading(false));
   }, []);

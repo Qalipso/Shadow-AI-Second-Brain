@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { hasSupabase } from "@/lib/supabase/env";
 import { estimateCostUsd, getLlm, hasLlm, MODELS } from "@/lib/llm";
+import { checkRateLimit, getRouteConfig } from "@/lib/rate-limit";
 import { isOverDailyCap, maxDailyUsd, recordLlmCall, todaysCostUsd } from "@/lib/cost-ledger";
 import { getCheckinStreak } from "@/lib/data";
 import { SYSTEM_PROMPT, buildWeeklyUserPrompt } from "@/ai/prompts/weekly-digest";
@@ -36,6 +37,14 @@ export async function POST(_request: NextRequest) {
   } = await supabase.auth.getUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  }
+
+  const rl = checkRateLimit(`${user.id}:reports-weekly`, getRouteConfig("reports-weekly"));
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: "Rate limit exceeded. Slow down." },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfter) } },
+    );
   }
 
   if (await isOverDailyCap(user.id)) {

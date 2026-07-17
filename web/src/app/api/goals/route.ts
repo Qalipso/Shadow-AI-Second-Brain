@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { hasSupabase } from "@/lib/supabase/env";
+import { jsonError } from "@/lib/api-response";
 import { GoalSchema } from "@/types/db";
 
 const CreateGoalInputSchema = z.object({
@@ -29,7 +30,7 @@ export async function GET() {
     .eq("user_id", user.id)
     .order("created_at", { ascending: false });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return jsonError(500, "Failed to load goals.", { logDetail: error.message, logTag: "[goals:GET]" });
 
   const goals = (data ?? [])
     .map((row: unknown) => GoalSchema.safeParse(row))
@@ -66,7 +67,7 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (error || !data) {
-    return NextResponse.json({ error: error?.message ?? "Insert failed." }, { status: 500 });
+    return jsonError(500, "Failed to create goal.", { logDetail: error?.message, logTag: "[goals:POST]" });
   }
 
   const goal = GoalSchema.safeParse(data);

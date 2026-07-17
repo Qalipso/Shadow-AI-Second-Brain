@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PenLine, Sparkles, Map, ArrowRight, X } from "lucide-react";
+import { useModalBehavior } from "@/components/useModalBehavior";
 
 const STORAGE_KEY = "shadow:onboarded";
 
@@ -84,6 +85,18 @@ export function OnboardingTour() {
     }
   }
 
+  // Stable wrapper: `skip` is redefined every render, and step changes
+  // re-render while the tour is open — an unstable onClose would tear down
+  // and re-run the hook's effect (re-locking scroll, re-stealing focus) on
+  // every step transition instead of only on actual open/close.
+  const onModalClose = useCallback(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, "true");
+    } catch {}
+    setVisible(false);
+  }, []);
+  const dialogRef = useModalBehavior<HTMLDivElement>({ open: visible, onClose: onModalClose });
+
   if (!visible) return null;
 
   const current = STEPS[step];
@@ -98,9 +111,11 @@ export function OnboardingTour() {
 
       {/* Card */}
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label="Getting started with Shadow"
+        tabIndex={-1}
         className="fixed inset-0 z-50 flex items-end justify-center sm:items-center p-4 sm:p-0"
       >
         <div

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { hasSupabase } from "@/lib/supabase/env";
 import { estimateCostUsd } from "@/lib/llm";
+import { checkRateLimit, getRouteConfig } from "@/lib/rate-limit";
 import {
   getConfiguredProvider,
   getConfiguredProviderName,
@@ -90,6 +91,14 @@ export async function POST() {
   } = await supabase.auth.getUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  }
+
+  const rl = checkRateLimit(`${user.id}:score-areas`, getRouteConfig("score-areas"));
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: "Rate limit exceeded. Slow down." },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfter) } },
+    );
   }
 
   // Cost cap

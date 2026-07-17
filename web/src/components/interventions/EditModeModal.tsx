@@ -1,5 +1,7 @@
 "use client";
 
+import { useModalBehavior } from "@/components/useModalBehavior";
+
 export function EditModeModal({
   onFork,
   onReplace,
@@ -9,6 +11,8 @@ export function EditModeModal({
   onReplace: () => void;
   onCancel: () => void;
 }) {
+  const dialogRef = useModalBehavior<HTMLDivElement>({ open: true, onClose: onCancel });
+
   return (
     <div
       className="fixed inset-0 z-[70] flex items-center justify-center p-4"
@@ -16,6 +20,10 @@ export function EditModeModal({
       onClick={onCancel}
     >
       <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        tabIndex={-1}
         className="relative max-w-sm w-full rounded-xl p-5 space-y-4"
         style={{
           background: "linear-gradient(160deg, rgba(15,14,22,0.99), rgba(10,9,15,0.99))",

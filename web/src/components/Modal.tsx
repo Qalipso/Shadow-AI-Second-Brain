@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, type ReactNode } from "react";
+import { type ReactNode } from "react";
+import { useModalBehavior } from "./useModalBehavior";
 
 // Lightweight modal primitive:
 // - centered, max-w configurable
@@ -9,9 +10,6 @@ import { useEffect, useRef, type ReactNode } from "react";
 // - focus trap on first interactive element
 // - prevents body scroll while open
 // - respects prefers-reduced-motion via globals.css
-
-const FOCUSABLE =
-  'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])';
 
 export function Modal({
   open,
@@ -28,54 +26,7 @@ export function Modal({
   maxWidth?: number;
   children: ReactNode;
 }) {
-  const dialogRef = useRef<HTMLDivElement | null>(null);
-
-  // ESC + body scroll lock + initial focus.
-  useEffect(() => {
-    if (!open) return;
-
-    const previousActive = document.activeElement as HTMLElement | null;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.stopPropagation();
-        onClose();
-      }
-      if (e.key === "Tab" && dialogRef.current) {
-        const focusable = Array.from(
-          dialogRef.current.querySelectorAll<HTMLElement>(FOCUSABLE),
-        ).filter((el) => !el.hasAttribute("disabled"));
-        if (focusable.length === 0) return;
-        const first = focusable[0];
-        const last = focusable[focusable.length - 1];
-        if (e.shiftKey && document.activeElement === first) {
-          last.focus();
-          e.preventDefault();
-        } else if (!e.shiftKey && document.activeElement === last) {
-          first.focus();
-          e.preventDefault();
-        }
-      }
-    };
-    window.addEventListener("keydown", onKey);
-
-    // Defer focus until after paint so animation can settle.
-    const timer = window.setTimeout(() => {
-      const target =
-        dialogRef.current?.querySelector<HTMLElement>(FOCUSABLE) ??
-        dialogRef.current;
-      target?.focus();
-    }, 0);
-
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      window.clearTimeout(timer);
-      document.body.style.overflow = previousOverflow;
-      previousActive?.focus?.();
-    };
-  }, [open, onClose]);
+  const dialogRef = useModalBehavior<HTMLDivElement>({ open, onClose });
 
   if (!open) return null;
 

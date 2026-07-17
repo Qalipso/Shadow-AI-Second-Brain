@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { hasSupabase } from "@/lib/supabase/env";
 import { detectKnowledgeGaps } from "@/lib/ai-brain/knowledge-gaps";
+import { jsonError } from "@/lib/api-response";
 
 // GET /api/knowledge-gaps
 // Returns open knowledge gaps for the authenticated user (status != 'dismissed').
@@ -27,7 +28,7 @@ export async function GET() {
     .limit(5);
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return jsonError(500, "Failed to load knowledge gaps.", { logDetail: error.message, logTag: "[knowledge-gaps:GET]" });
   }
 
   return NextResponse.json({ gaps: data ?? [] }, { status: 200 });
@@ -69,7 +70,7 @@ export async function POST() {
     .select("id, reason, source, area, priority, status");
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return jsonError(500, "Failed to save knowledge gaps.", { logDetail: error.message, logTag: "[knowledge-gaps:POST]" });
   }
 
   return NextResponse.json({ inserted: (inserted ?? []).length, gaps: inserted ?? [] }, { status: 200 });

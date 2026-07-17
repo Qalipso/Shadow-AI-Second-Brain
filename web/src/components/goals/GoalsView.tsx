@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import type { Goal } from "@/types/db";
+import { z } from "zod";
+import { GoalSchema, type Goal } from "@/types/db";
 import { GoalCard } from "@/components/direction/cards";
 import { GoalDetailDrawer } from "@/components/direction/GoalDetailDrawer";
 import { CreateGoalModal } from "@/components/direction/CreateGoalModal";
@@ -18,12 +19,17 @@ export function GoalsView() {
     setError(null);
     try {
       const res = await fetch("/api/goals");
-      const j = await res.json() as { goals?: Goal[]; error?: string };
+      const j: unknown = await res.json();
       if (!res.ok) {
-        setError(j.error ?? "Failed to load goals.");
+        setError((j as { error?: string }).error ?? "Failed to load goals.");
         return;
       }
-      setGoals(j.goals ?? []);
+      const parsed = z.object({ goals: z.array(GoalSchema) }).safeParse(j);
+      if (!parsed.success) {
+        setError("Malformed response from server.");
+        return;
+      }
+      setGoals(parsed.data.goals);
     } catch {
       setError("Network error.");
     } finally {

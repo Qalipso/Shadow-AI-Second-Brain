@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Button } from "@/components/Button";
 
 // What data will be imported — shown before user connects
 const DATA_IMPORTED = [
@@ -113,10 +114,10 @@ export function SpotifyConnectCard() {
 
       {/* CTAs */}
       <div className="flex flex-col gap-3 w-full max-w-[260px]">
-        <button
+        <Button
           onClick={handleConnect}
           disabled={connecting}
-          className="ritual-cta rounded-xl px-5 py-3 text-[13px] font-medium border flex items-center justify-center gap-3"
+          className="rounded-xl px-5 py-3 text-[13px] font-medium border flex items-center justify-center gap-3"
           style={{
             background: "rgba(126,87,194,0.10)",
             borderColor: "rgba(126,87,194,0.28)",
@@ -127,7 +128,7 @@ export function SpotifyConnectCard() {
           {/* Spotify icon (simple circle + waveform, not the full green mark) */}
           <span style={{ fontSize: 10, color: "rgba(126,87,194,0.8)" }}>◈</span>
           {connecting ? "Connecting…" : "Connect Spotify"}
-        </button>
+        </Button>
 
         <button
           disabled

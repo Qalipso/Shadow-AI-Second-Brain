@@ -5,6 +5,7 @@ import { hasSupabase } from "@/lib/supabase/env";
 import { hasLlm } from "@/lib/llm";
 import { generateEmbedding, embedModel } from "@/lib/embeddings";
 import { recordLlmCall } from "@/lib/cost-ledger";
+import { checkRateLimit, getRouteConfig } from "@/lib/rate-limit";
 
 // POST /api/embed { entry_id }
 // Generates and stores embedding for a processed entry.
@@ -47,6 +48,14 @@ export async function POST(request: NextRequest) {
   } = await supabase.auth.getUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  }
+
+  const rl = checkRateLimit(`${user.id}:embed`, getRouteConfig("embed"));
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: "Rate limit exceeded. Slow down." },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfter) } },
+    );
   }
 
   // Fetch entry
