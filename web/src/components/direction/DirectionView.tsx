@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { z } from "zod";
+import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { CreateGoalModal } from "./CreateGoalModal";
-import { GoalSchema, MissionSchema, TaskSchema, type Goal, type Mission, type Task } from "@/types/db";
+import type { Goal, Mission, Task } from "@/types/db";
+import { useGoals, useMissions, useTasks } from "@/lib/direction/useDirectionData";
 import { GoalCard, MissionCard, TaskCard } from "./cards";
 import { GoalDetailDrawer } from "./GoalDetailDrawer";
 import { MissionDetailDrawer } from "./MissionDetailDrawer";
@@ -17,10 +17,10 @@ type Tab = (typeof TABS)[number];
 // ─── Main component ───────────────────────────────────────────────────────────
 export function DirectionView() {
   const [tab, setTab] = useState<Tab>("Overview");
-  const [goals, setGoals] = useState<Goal[]>([]);
-  const [missions, setMissions] = useState<Mission[]>([]);
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { goals, isLoading: goalsLoading, mutate: mutateGoals } = useGoals();
+  const { missions, isLoading: missionsLoading, mutate: mutateMissions } = useMissions();
+  const { tasks, isLoading: tasksLoading, mutate: mutateTasks } = useTasks();
+  const loading = goalsLoading || missionsLoading || tasksLoading;
   const [createOpen, setCreateOpen] = useState(false);
 
   // Drawer state
@@ -28,30 +28,29 @@ export function DirectionView() {
   const [openMission, setOpenMission] = useState<Mission | null>(null);
   const [openTask, setOpenTask]       = useState<Task | null>(null);
 
-  // ── Fetch everything in parallel ──
-  useEffect(() => {
-    Promise.all([
-      fetch("/api/goals").then((r) => r.json()).catch(() => ({})),
-      fetch("/api/missions").then((r) => r.json()).catch(() => ({})),
-      fetch("/api/tasks").then((r) => r.json()).catch(() => ({})),
-    ])
-      .then(([g, m, t]) => {
-        const goalsParsed = z.object({ goals: z.array(GoalSchema) }).safeParse(g);
-        const missionsParsed = z.object({ missions: z.array(MissionSchema) }).safeParse(m);
-        const tasksParsed = z.object({ tasks: z.array(TaskSchema) }).safeParse(t);
-        setGoals(goalsParsed.success ? goalsParsed.data.goals : []);
-        setMissions(missionsParsed.success ? missionsParsed.data.missions : []);
-        setTasks(tasksParsed.success ? tasksParsed.data.tasks : []);
-      })
-      .finally(() => setLoading(false));
-  }, []);
-
-  function handleGoalCreated(goal: Goal)    { setGoals((p) => [goal, ...p]); }
-  function handleGoalUpdated(goal: Goal)    { setGoals((p) => p.map((g) => g.id === goal.id ? goal : g)); }
-  function handleGoalDeleted(id: string)    { setGoals((p) => p.filter((g) => g.id !== id)); setOpenGoal(null); }
-  function handleMissionUpdated(m: Mission) { setMissions((p) => p.map((x) => x.id === m.id ? m : x)); }
-  function handleTaskUpdated(t: Task)       { setTasks((p) => p.map((x) => x.id === t.id ? t : x)); }
-  function handleTaskDeleted(id: string)    { setTasks((p) => p.filter((t) => t.id !== id)); setOpenTask(null); }
+  // Shared SWR cache (issue #11) — a mutation here is visible in GoalsView/
+  // TasksView immediately too, not just this component. revalidate:false
+  // keeps the previous instant-optimistic-update UX (no extra round trip).
+  function handleGoalCreated(goal: Goal) {
+    mutateGoals((p) => [goal, ...(p ?? [])], { revalidate: false });
+  }
+  function handleGoalUpdated(goal: Goal) {
+    mutateGoals((p) => (p ?? []).map((g) => g.id === goal.id ? goal : g), { revalidate: false });
+  }
+  function handleGoalDeleted(id: string) {
+    mutateGoals((p) => (p ?? []).filter((g) => g.id !== id), { revalidate: false });
+    setOpenGoal(null);
+  }
+  function handleMissionUpdated(m: Mission) {
+    mutateMissions((p) => (p ?? []).map((x) => x.id === m.id ? m : x), { revalidate: false });
+  }
+  function handleTaskUpdated(t: Task) {
+    mutateTasks((p) => (p ?? []).map((x) => x.id === t.id ? t : x), { revalidate: false });
+  }
+  function handleTaskDeleted(id: string) {
+    mutateTasks((p) => (p ?? []).filter((t) => t.id !== id), { revalidate: false });
+    setOpenTask(null);
+  }
 
   async function quickToggleTask(t: Task) {
     const newStatus = t.status === "done" ? "open" : "done";

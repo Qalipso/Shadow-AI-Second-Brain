@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { z } from "zod";
-import { GoalSchema, MissionSchema, TaskSchema, type Goal, type Mission, type Task } from "@/types/db";
+import { useMemo, useState } from "react";
+import type { Task } from "@/types/db";
+import { useGoals, useMissions, useTasks } from "@/lib/direction/useDirectionData";
 import { TaskCard } from "@/components/direction/cards";
 import { TaskDetailDrawer } from "@/components/direction/TaskDetailDrawer";
 import { EmptyState } from "@/components/EmptyState";
@@ -17,33 +17,12 @@ const FILTER_LABELS: Record<FilterStatus, string> = {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export function TasksView() {
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [goals, setGoals] = useState<Goal[]>([]);
-  const [missions, setMissions] = useState<Mission[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { tasks, isLoading: tasksLoading, mutate: mutateTasks } = useTasks();
+  const { goals, isLoading: goalsLoading } = useGoals();
+  const { missions, isLoading: missionsLoading } = useMissions();
+  const loading = tasksLoading || goalsLoading || missionsLoading;
   const [filter, setFilter] = useState<FilterStatus>("open");
   const [openTask, setOpenTask] = useState<Task | null>(null);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [t, g, m] = await Promise.all([
-        fetch("/api/tasks").then((r) => r.json()).catch(() => ({})),
-        fetch("/api/goals").then((r) => r.json()).catch(() => ({})),
-        fetch("/api/missions").then((r) => r.json()).catch(() => ({})),
-      ]);
-      const tasksParsed = z.object({ tasks: z.array(TaskSchema) }).safeParse(t);
-      const goalsParsed = z.object({ goals: z.array(GoalSchema) }).safeParse(g);
-      const missionsParsed = z.object({ missions: z.array(MissionSchema) }).safeParse(m);
-      setTasks(tasksParsed.success ? tasksParsed.data.tasks : []);
-      setGoals(goalsParsed.success ? goalsParsed.data.goals : []);
-      setMissions(missionsParsed.success ? missionsParsed.data.missions : []);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
 
   const goalById = useMemo(() => new Map(goals.map((g) => [g.id, g])), [goals]);
   const missionById = useMemo(() => new Map(missions.map((m) => [m.id, m])), [missions]);
@@ -60,6 +39,10 @@ export function TasksView() {
     done: tasks.filter((t) => t.status === "done").length,
   }), [tasks]);
 
+  function handleTaskUpdated(updated: Task) {
+    mutateTasks((prev) => (prev ?? []).map((t) => t.id === updated.id ? updated : t), { revalidate: false });
+  }
+
   async function quickToggle(task: Task) {
     const newStatus = task.status === "done" ? "open" : "done";
     const res = await fetch(`/api/tasks/${task.id}`, {
@@ -69,12 +52,8 @@ export function TasksView() {
     });
     const j = await res.json();
     if (res.ok && j.task) {
-      setTasks((prev) => prev.map((t) => t.id === j.task.id ? j.task : t));
+      handleTaskUpdated(j.task);
     }
-  }
-
-  function handleTaskUpdated(updated: Task) {
-    setTasks((prev) => prev.map((t) => t.id === updated.id ? updated : t));
   }
 
   return (

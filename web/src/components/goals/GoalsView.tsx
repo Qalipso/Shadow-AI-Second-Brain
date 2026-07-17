@@ -1,50 +1,23 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { z } from "zod";
-import { GoalSchema, type Goal } from "@/types/db";
+import { useState } from "react";
+import type { Goal } from "@/types/db";
+import { useGoals } from "@/lib/direction/useDirectionData";
 import { GoalCard } from "@/components/direction/cards";
 import { GoalDetailDrawer } from "@/components/direction/GoalDetailDrawer";
 import { CreateGoalModal } from "@/components/direction/CreateGoalModal";
 
 export function GoalsView() {
-  const [goals, setGoals] = useState<Goal[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { goals, isLoading: loading, error, mutate } = useGoals();
   const [openGoal, setOpenGoal] = useState<Goal | null>(null);
   const [showCreate, setShowCreate] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/goals");
-      const j: unknown = await res.json();
-      if (!res.ok) {
-        setError((j as { error?: string }).error ?? "Failed to load goals.");
-        return;
-      }
-      const parsed = z.object({ goals: z.array(GoalSchema) }).safeParse(j);
-      if (!parsed.success) {
-        setError("Malformed response from server.");
-        return;
-      }
-      setGoals(parsed.data.goals);
-    } catch {
-      setError("Network error.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
-
   function handleCreated(goal: Goal) {
-    setGoals((prev) => [goal, ...prev]);
+    mutate((prev) => [goal, ...(prev ?? [])], { revalidate: false });
   }
 
   function handleGoalUpdated(updated: Goal) {
-    setGoals((prev) => prev.map((g) => g.id === updated.id ? updated : g));
+    mutate((prev) => (prev ?? []).map((g) => g.id === updated.id ? updated : g), { revalidate: false });
     if (openGoal?.id === updated.id) setOpenGoal(updated);
   }
 
@@ -88,7 +61,7 @@ export function GoalsView() {
           <p className="text-[12px]" style={{ color: "#E36161" }}>{error}</p>
           <button
             type="button"
-            onClick={load}
+            onClick={() => mutate()}
             className="text-[11px] font-mono"
             style={{ color: "var(--accent-warm)" }}
           >
