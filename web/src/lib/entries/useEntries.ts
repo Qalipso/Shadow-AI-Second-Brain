@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import type { InboxEntry } from "./types";
+import { z } from "zod";
+import { InboxEntrySchema, type InboxEntry } from "./types";
 
 // Single-source-of-truth client hook for entries.
 // - hasSupabase mode → fetch from /api/entries (DB-backed, classified fields).
@@ -9,6 +10,11 @@ import type { InboxEntry } from "./types";
 // - Refreshes on `shadow:entries:changed` window event (Composer/Orb dispatch).
 
 import { listLocalEntries } from "./local";
+
+const ResponseSchema = z.object({
+  entries: z.array(InboxEntrySchema),
+  mode: z.enum(["db", "local"]),
+});
 
 type Mode = "db" | "local" | "loading";
 
@@ -40,13 +46,17 @@ export function useEntries(limit = 50): {
         setEntries(listLocalEntries(limit));
         return;
       }
-      const data = (await res.json()) as {
-        entries: InboxEntry[];
-        mode: "db" | "local";
-      };
-      if (data.mode === "db") {
+      const raw: unknown = await res.json();
+      const parsed = ResponseSchema.safeParse(raw);
+      if (!parsed.success) {
+        setError("Malformed response from server.");
+        setMode("local");
+        setEntries(listLocalEntries(limit));
+        return;
+      }
+      if (parsed.data.mode === "db") {
         setMode("db");
-        setEntries(data.entries);
+        setEntries(parsed.data.entries);
       } else {
         setMode("local");
         setEntries(listLocalEntries(limit));

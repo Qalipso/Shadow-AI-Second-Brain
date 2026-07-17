@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { X, Plus } from "lucide-react";
 import type { Habit, HabitSchedule } from "@/types/db";
+import { Button } from "@/components/Button";
+import { useModalBehavior } from "@/components/useModalBehavior";
 
 const SPHERES = [
   "work", "money", "health", "energy", "food",
@@ -47,6 +49,8 @@ export function CreateProtocolModal({ open, onClose, onCreated }: Props) {
   const [idealVersion, setIdealVersion] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const dialogRef = useModalBehavior<HTMLDivElement>({ open, onClose });
 
   if (!open) return null;
 
@@ -125,6 +129,11 @@ export function CreateProtocolModal({ open, onClose, onCreated }: Props) {
 
       {/* Modal */}
       <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Create habit"
+        tabIndex={-1}
         className="anim-scale-in fixed inset-x-4 top-1/2 -translate-y-1/2 z-50 rounded-2xl max-h-[90vh] overflow-y-auto md:left-1/2 md:-translate-x-1/2 md:max-w-lg md:inset-x-auto scrollbar-hide"
         style={{
           background: "rgba(11, 9, 18, 0.98)",
@@ -493,10 +502,10 @@ export function CreateProtocolModal({ open, onClose, onCreated }: Props) {
           )}
 
           {/* ── CTA ───────────────────────────────────────────── */}
-          <button
+          <Button
             onClick={handleCreate}
             disabled={!isValid || saving}
-            className="ritual-cta w-full py-3.5 rounded-xl text-[13px] font-mono uppercase tracking-wider flex items-center justify-center gap-2"
+            className="w-full py-3.5 rounded-xl text-[13px] font-mono uppercase tracking-wider flex items-center justify-center gap-2"
             style={{
               background: "rgba(214, 184, 116, 0.10)",
               border: "1px solid var(--shadow-border-active)",
@@ -504,7 +513,7 @@ export function CreateProtocolModal({ open, onClose, onCreated }: Props) {
             }}
           >
             {saving ? "Creating…" : (<><Plus size={14} /> Begin Ritual</>)}
-          </button>
+          </Button>
         </div>
       </div>
     </>

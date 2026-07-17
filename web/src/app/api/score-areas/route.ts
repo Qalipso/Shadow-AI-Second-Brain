@@ -2,7 +2,14 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { hasSupabase } from "@/lib/supabase/env";
-import { estimateCostUsd, getLlm, hasLlm, MODELS } from "@/lib/llm";
+import { estimateCostUsd } from "@/lib/llm";
+import { checkRateLimit, getRouteConfig } from "@/lib/rate-limit";
+import {
+  getConfiguredProvider,
+  getConfiguredProviderName,
+  hasProvider,
+  resolveModel,
+} from "@/lib/llm-provider";
 import {
   isOverDailyCap,
   maxDailyUsd,
@@ -70,8 +77,12 @@ export async function POST() {
   if (!hasSupabase()) {
     return NextResponse.json({ error: "Supabase env missing." }, { status: 503 });
   }
-  if (!hasLlm()) {
-    return NextResponse.json({ error: "OPENAI_API_KEY missing." }, { status: 503 });
+  const providerName = getConfiguredProviderName();
+  if (!hasProvider(providerName)) {
+    return NextResponse.json(
+      { error: `${providerName === "anthropic" ? "ANTHROPIC_API_KEY" : "OPENAI_API_KEY"} missing.` },
+      { status: 503 },
+    );
   }
 
   const supabase = await createSupabaseServerClient();
@@ -80,6 +91,14 @@ export async function POST() {
   } = await supabase.auth.getUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  }
+
+  const rl = checkRateLimit(`${user.id}:score-areas`, getRouteConfig("score-areas"));
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: "Rate limit exceeded. Slow down." },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfter) } },
+    );
   }
 
   // Cost cap
@@ -257,30 +276,29 @@ export async function POST() {
     })
     .filter((a) => a.entries7d > 0 || a.tasksCompleted > 0 || a.tasksOpen > 0);
 
-  // LLM call for rationale
-  const openai = getLlm();
-  const model = MODELS.area_scoring;
+  // LLM call for rationale — provider-agnostic (DECISIONS/011).
+  const model = resolveModel("area_scoring", providerName);
   const startedAt = Date.now();
   let aiAdjustments: AiAdjustment[] = [];
 
   if (promptAreas.length > 0) {
     try {
-      const resp = await openai.chat.completions.create({
+      const resp = await getConfiguredProvider().complete({
         model,
-        max_tokens: MAX_TOKENS,
+        maxTokens: MAX_TOKENS,
         temperature: 0.5,
-        response_format: { type: "json_object" },
+        jsonMode: true,
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
           { role: "user", content: buildUserPrompt(promptAreas) },
         ],
       });
 
-      const tokensIn = resp.usage?.prompt_tokens ?? 0;
-      const tokensOut = resp.usage?.completion_tokens ?? 0;
+      const tokensIn = resp.usage.tokensIn;
+      const tokensOut = resp.usage.tokensOut;
       const costUsd = estimateCostUsd(model, tokensIn, tokensOut);
       const latencyMs = Date.now() - startedAt;
-      const rawText = resp.choices[0]?.message?.content ?? "";
+      const rawText = resp.text;
 
       try {
         const json = JSON.parse(rawText);

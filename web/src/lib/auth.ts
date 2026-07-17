@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { hasSupabase } from "./supabase/env";
 import { createSupabaseServerClient } from "./supabase/server";
 
@@ -10,7 +11,11 @@ export type CurrentUser = {
 // Returns the current user when Supabase is configured + a session is present.
 // Returns `null` in dev mode (no env) or when unauthenticated — the proxy
 // is the source of truth for protected-route gating.
-export async function getCurrentUser(): Promise<CurrentUser | null> {
+//
+// cache()-wrapped (issue #16) — proxy.ts, ~17 page.tsx files, and UserPill.tsx
+// all independently called this per request with no dedup, unlike its sibling
+// getSoulState (lib/souls/soulCore.ts) which already used this pattern.
+export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
   if (!hasSupabase()) return null;
 
   try {
@@ -22,4 +27,4 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
     console.error("[auth:getCurrentUser]", (e as Error).message);
     return null;
   }
-}
+});

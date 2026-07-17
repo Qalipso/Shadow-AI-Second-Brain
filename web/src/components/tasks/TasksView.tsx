@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { Goal, Mission, Task } from "@/types/db";
+import { z } from "zod";
+import { GoalSchema, MissionSchema, TaskSchema, type Goal, type Mission, type Task } from "@/types/db";
 import { TaskCard } from "@/components/direction/cards";
 import { TaskDetailDrawer } from "@/components/direction/TaskDetailDrawer";
 import { EmptyState } from "@/components/EmptyState";
@@ -31,9 +32,12 @@ export function TasksView() {
         fetch("/api/goals").then((r) => r.json()).catch(() => ({})),
         fetch("/api/missions").then((r) => r.json()).catch(() => ({})),
       ]);
-      setTasks(t.tasks ?? []);
-      setGoals(g.goals ?? []);
-      setMissions(m.missions ?? []);
+      const tasksParsed = z.object({ tasks: z.array(TaskSchema) }).safeParse(t);
+      const goalsParsed = z.object({ goals: z.array(GoalSchema) }).safeParse(g);
+      const missionsParsed = z.object({ missions: z.array(MissionSchema) }).safeParse(m);
+      setTasks(tasksParsed.success ? tasksParsed.data.tasks : []);
+      setGoals(goalsParsed.success ? goalsParsed.data.goals : []);
+      setMissions(missionsParsed.success ? missionsParsed.data.missions : []);
     } finally {
       setLoading(false);
     }

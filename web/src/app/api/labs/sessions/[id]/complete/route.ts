@@ -4,6 +4,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { hasSupabase } from "@/lib/supabase/env";
 import { estimateCostUsd, getLlm, hasLlm, MODELS } from "@/lib/llm";
 import { isOverDailyCap, recordLlmCall } from "@/lib/cost-ledger";
+import { checkRateLimit, getRouteConfig } from "@/lib/rate-limit";
 import { getLabsSession, insertMemoryItems } from "@/lib/labs/queries";
 import { calcDimensionScores, normalizeValue, scoresToJson } from "@/lib/labs/scoring";
 import { LABS_SYSTEM_PROMPT, buildLabsAnalysisPrompt } from "@/ai/prompts/labs-analysis";
@@ -40,6 +41,14 @@ export async function POST(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  }
+
+  const rl = checkRateLimit(`${user.id}:labs-complete`, getRouteConfig("labs-complete"));
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: "Rate limit exceeded. Slow down." },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfter) } },
+    );
   }
 
   const session = await getLabsSession(sessionId, user.id);
@@ -167,6 +176,7 @@ export async function POST(
               importance: Math.min(5, Math.max(1, mc.importance ?? 3)),
               stability: mc.stability ?? "stable",
               tags: mc.tags ?? [],
+              memory_type: "insight" as const, // explicit (issue #22) — self-reflection results are genuinely insights, not a fallback default
               embedding,
             };
           }),

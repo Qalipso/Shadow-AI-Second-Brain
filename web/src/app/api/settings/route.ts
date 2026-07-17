@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { hasSupabase } from "@/lib/supabase/env";
+import { jsonError } from "@/lib/api-response";
 
 // GET /api/settings  — load persisted user settings
 // PATCH /api/settings — upsert user settings (partial update OK)
@@ -28,7 +29,7 @@ export async function GET() {
     .eq("user_id", user.id)
     .maybeSingle();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return jsonError(500, "Failed to load settings.", { logDetail: error.message, logTag: "[settings:GET]" });
 
   return NextResponse.json({ settings: data ?? null, mode: "db" });
 }
@@ -64,7 +65,7 @@ export async function PATCH(request: NextRequest) {
     .select("questions_per_day, ai_tone, show_questions_on_first_open, memory_enabled")
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return jsonError(500, "Failed to save settings.", { logDetail: error.message, logTag: "[settings:PATCH]" });
 
   return NextResponse.json({ settings: data, mode: "db" });
 }

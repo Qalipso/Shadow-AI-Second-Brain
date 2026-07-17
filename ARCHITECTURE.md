@@ -92,6 +92,11 @@ Used by:
 - `/api/reports/weekly` (weekly review)
 - `/api/score-areas` (life area scoring)
 
+**Memory graph (`memory_graph_nodes`/`memory_graph_edges`) is not part of this pipeline.** It's
+real, DB-enforced infrastructure (15 node types, 10 edge types) written by `ai-brain/synthesizer.ts`
+and rendered at `/memory` via React Flow, but `buildMemoryContext` above never reads it — this is
+a deliberate scope decision, not an oversight. See ADR-012.
+
 ### 4. Model Routing
 **Lib:** `src/lib/llm.ts`
 
@@ -106,6 +111,13 @@ Used by:
 | Labs analysis | `gpt-4o` | Personality interpretation |
 
 Deep query detection: `isDeepQuery()` heuristic in `ai/prompts/shadow-chat.ts` checks for words like *why*, *pattern*, *across*, *last week*.
+
+**Provider abstraction (ADR-011, partial):** `src/lib/llm-provider/` normalizes OpenAI and
+Anthropic behind one `LLMProvider.complete()` interface, selected via `LLM_PROVIDER` env var.
+`[Implemented]` on `classify`, `shadow/chat`, `score-areas`, `reports/daily`, and `memory/ask`
+(5 of 23). `[Planned]` on the other 18 LLM call sites — they still call `lib/llm.ts`'s
+`getLlm()` directly. See ADR-011's Consequences for the
+full list.
 
 ### 5. Cost Ledger
 **Lib:** `src/lib/cost-ledger.ts`
@@ -199,7 +211,7 @@ OAuth flow (PKCE) → store encrypted refresh token → periodic sync of top tra
 | Row leakage | RLS policies on every table, scoped to `auth.uid()` |
 | Cost runaway | `MAX_DAILY_LLM_USD` enforced in `lib/cost-ledger.ts` |
 | Spotify token theft | Refresh tokens encrypted with `lib/music/crypto.ts` |
-| Rate limiting | `lib/rate-limit.ts` per-IP token bucket on classify/chat |
+| Rate limiting | `lib/rate-limit.ts` — per-user (not per-IP) fixed-window counter (not a token bucket), applied to every LLM-calling route. **Not a real mitigation on serverless**: it's an in-process `Map`, so each cold-started/concurrent-warm instance has its own counter — see issue #5. Correct for single-instance deployments only; replace with `@upstash/ratelimit` (sketched in the file's own header comment) before relying on it as an actual control. |
 | XSS | React escaping + DOMPurify on any markdown rendering |
 | Auth | Supabase magic link only; no password storage |
 

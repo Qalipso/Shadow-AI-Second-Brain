@@ -2,7 +2,14 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { hasSupabase } from "@/lib/supabase/env";
-import { estimateCostUsd, getLlm, hasLlm, MODELS } from "@/lib/llm";
+import { estimateCostUsd } from "@/lib/llm";
+import {
+  getConfiguredProvider,
+  getConfiguredProviderName,
+  hasProvider,
+  resolveModel,
+  LLMRateLimited,
+} from "@/lib/llm-provider";
 import {
   isOverDailyCap,
   maxDailyUsd,
@@ -37,8 +44,12 @@ export async function POST(request: NextRequest) {
   if (!hasSupabase()) {
     return NextResponse.json({ error: "Supabase env missing." }, { status: 503 });
   }
-  if (!hasLlm()) {
-    return NextResponse.json({ error: "OPENAI_API_KEY missing." }, { status: 503 });
+  const providerName = getConfiguredProviderName();
+  if (!hasProvider(providerName)) {
+    return NextResponse.json(
+      { error: `${providerName === "anthropic" ? "ANTHROPIC_API_KEY" : "OPENAI_API_KEY"} missing.` },
+      { status: 503 },
+    );
   }
 
   // Auth
@@ -90,7 +101,8 @@ export async function POST(request: NextRequest) {
 
   const todayDate = todayDateStr();
   const deep = isDeepQuery(body.message);
-  const model = deep ? MODELS.rag_answer : MODELS.classify;
+  // Provider-agnostic (DECISIONS/011) — swap via LLM_PROVIDER env.
+  const model = resolveModel(deep ? "rag_answer" : "classify", providerName);
 
   // Build memory context (RAG + today + scores)
   const ctx = await buildMemoryContext(body.message, user.id, {
@@ -108,7 +120,6 @@ export async function POST(request: NextRequest) {
   });
 
   // LLM call
-  const openai = getLlm();
   const startedAt = Date.now();
   let replyText = "";
   let tokensIn = 0;
@@ -116,18 +127,18 @@ export async function POST(request: NextRequest) {
   let costUsd = 0;
 
   try {
-    const resp = await openai.chat.completions.create({
+    const resp = await getConfiguredProvider().complete({
       model,
-      max_tokens: deep ? 1000 : 500,
+      maxTokens: deep ? 1000 : 500,
       temperature: 0.75,
       messages,
     });
-    tokensIn = resp.usage?.prompt_tokens ?? 0;
-    tokensOut = resp.usage?.completion_tokens ?? 0;
+    tokensIn = resp.usage.tokensIn;
+    tokensOut = resp.usage.tokensOut;
     costUsd = estimateCostUsd(model, tokensIn, tokensOut);
-    replyText = resp.choices[0]?.message?.content?.trim() ?? "";
+    replyText = resp.text;
   } catch (e) {
-    const msg = (e as Error).message;
+    const msg = e instanceof Error ? e.message : String(e);
     await recordLlmCall({
       userId: user.id,
       task: "chat",
@@ -136,6 +147,9 @@ export async function POST(request: NextRequest) {
       ok: false,
       error: msg,
     });
+    if (e instanceof LLMRateLimited) {
+      return NextResponse.json({ error: `LLM rate limited: ${msg}` }, { status: 429 });
+    }
     return NextResponse.json({ error: `LLM call failed: ${msg}` }, { status: 502 });
   }
 

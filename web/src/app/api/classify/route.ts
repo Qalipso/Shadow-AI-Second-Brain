@@ -2,12 +2,14 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { hasSupabase } from "@/lib/supabase/env";
+import { estimateCostUsd } from "@/lib/llm";
 import {
-  estimateCostUsd,
-  getLlm,
-  hasLlm,
-  MODELS,
-} from "@/lib/llm";
+  getConfiguredProvider,
+  getConfiguredProviderName,
+  hasProvider,
+  resolveModel,
+  LLMRateLimited,
+} from "@/lib/llm-provider";
 import {
   buildUserPrompt,
   CLASSIFICATION_SCHEMA_VERSION,
@@ -60,9 +62,10 @@ export async function POST(request: NextRequest) {
       { status: 503 },
     );
   }
-  if (!hasLlm()) {
+  const providerName = getConfiguredProviderName();
+  if (!hasProvider(providerName)) {
     return NextResponse.json(
-      { error: "OPENAI_API_KEY missing." },
+      { error: `${providerName === "anthropic" ? "ANTHROPIC_API_KEY" : "OPENAI_API_KEY"} missing.` },
       { status: 503 },
     );
   }
@@ -132,8 +135,9 @@ export async function POST(request: NextRequest) {
   }
 
   // ─── LLM call ───────────────────────────────────────────────────────────
-  const openai = getLlm();
-  const model = MODELS.classify;
+  // Provider-agnostic (DECISIONS/011) — model/error normalization live in
+  // lib/llm-provider; swap via LLM_PROVIDER env, no other change here.
+  const model = resolveModel("classify", providerName);
   const startedAt = Date.now();
   let result: ClassificationResult | null = null;
   let tokensIn = 0;
@@ -142,12 +146,14 @@ export async function POST(request: NextRequest) {
   let rawText = "";
 
   try {
-    const resp = await openai.chat.completions.create({
+    const resp = await getConfiguredProvider().complete({
       model,
-      max_tokens: MAX_TOKENS,
+      maxTokens: MAX_TOKENS,
       temperature: 0,
-      // Force valid-JSON output. System prompt mentions "Return JSON only".
-      response_format: { type: "json_object" },
+      // Force valid-JSON output where the vendor supports it (OpenAI). System
+      // prompt also says "Return JSON only" independently, so this degrades
+      // gracefully on providers without a JSON-mode API (see providers/anthropic.ts).
+      jsonMode: true,
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         {
@@ -159,12 +165,12 @@ export async function POST(request: NextRequest) {
         },
       ],
     });
-    tokensIn = resp.usage?.prompt_tokens ?? 0;
-    tokensOut = resp.usage?.completion_tokens ?? 0;
+    tokensIn = resp.usage.tokensIn;
+    tokensOut = resp.usage.tokensOut;
     costUsd = estimateCostUsd(model, tokensIn, tokensOut);
-    rawText = resp.choices[0]?.message?.content ?? "";
+    rawText = resp.text;
   } catch (e) {
-    const msg = (e as Error).message;
+    const msg = e instanceof Error ? e.message : String(e);
     await recordLlmCall({
       userId: user.id,
       task: "classify",
@@ -173,6 +179,12 @@ export async function POST(request: NextRequest) {
       ok: false,
       error: msg,
     });
+    if (e instanceof LLMRateLimited) {
+      return NextResponse.json(
+        { error: `LLM rate limited: ${msg}` },
+        { status: 429 },
+      );
+    }
     return NextResponse.json(
       { error: `LLM call failed: ${msg}` },
       { status: 502 },

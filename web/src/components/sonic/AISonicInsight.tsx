@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Card } from "@/components/Card";
+import { Button } from "@/components/Button";
 
 export function AISonicInsight({ initialInsight }: { initialInsight: string | null }) {
   const [insight, setInsight] = useState(initialInsight);
@@ -47,10 +48,10 @@ export function AISonicInsight({ initialInsight }: { initialInsight: string | nu
           <p className="text-[12px]" style={{ color: "var(--shadow-text-faint)" }}>
             No insight generated yet.
           </p>
-          <button
+          <Button
             onClick={generate}
             disabled={pending}
-            className="ritual-cta rounded-lg px-4 py-2 text-[12px] border"
+            className="rounded-lg px-4 py-2 text-[12px] border"
             style={{
               background: "rgba(214,184,116,0.08)",
               borderColor: "rgba(214,184,116,0.22)",
@@ -58,7 +59,7 @@ export function AISonicInsight({ initialInsight }: { initialInsight: string | nu
             }}
           >
             {pending ? "Generating…" : "Generate Sonic Insight"}
-          </button>
+          </Button>
         </div>
       )}
     </Card>

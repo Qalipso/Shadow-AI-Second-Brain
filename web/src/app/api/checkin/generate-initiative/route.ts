@@ -3,6 +3,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { hasSupabase } from "@/lib/supabase/env";
 import { getLlm, hasLlm, MODELS, estimateCostUsd } from "@/lib/llm";
 import { isOverDailyCap, recordLlmCall } from "@/lib/cost-ledger";
+import { checkRateLimit, getRouteConfig } from "@/lib/rate-limit";
 
 // POST /api/checkin/generate-initiative
 // Called after check-in save to generate Today Initiative via AI.
@@ -16,6 +17,14 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  }
+
+  const rl = checkRateLimit(`${user.id}:checkin-generate-initiative`, getRouteConfig("checkin-generate-initiative"));
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: "Rate limit exceeded. Slow down." },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfter) } },
+    );
   }
 
   // Read most recent check-in (supports multiple per day)

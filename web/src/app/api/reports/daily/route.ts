@@ -2,7 +2,15 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { hasSupabase } from "@/lib/supabase/env";
-import { estimateCostUsd, getLlm, hasLlm, MODELS } from "@/lib/llm";
+import { estimateCostUsd } from "@/lib/llm";
+import { checkRateLimit, getRouteConfig } from "@/lib/rate-limit";
+import {
+  getConfiguredProvider,
+  getConfiguredProviderName,
+  hasProvider,
+  resolveModel,
+  LLMRateLimited,
+} from "@/lib/llm-provider";
 import { searchSimilarEntries, buildMemoryBlock } from "@/lib/rag";
 import {
   buildUserPrompt,
@@ -67,8 +75,12 @@ export async function POST(request: NextRequest) {
   if (!hasSupabase()) {
     return NextResponse.json({ error: "Supabase env missing." }, { status: 503 });
   }
-  if (!hasLlm()) {
-    return NextResponse.json({ error: "OPENAI_API_KEY missing." }, { status: 503 });
+  const providerName = getConfiguredProviderName();
+  if (!hasProvider(providerName)) {
+    return NextResponse.json(
+      { error: `${providerName === "anthropic" ? "ANTHROPIC_API_KEY" : "OPENAI_API_KEY"} missing.` },
+      { status: 503 },
+    );
   }
 
   const supabase = await createSupabaseServerClient();
@@ -77,6 +89,14 @@ export async function POST(request: NextRequest) {
   } = await supabase.auth.getUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  }
+
+  const rl = checkRateLimit(`${user.id}:reports-daily`, getRouteConfig("reports-daily"));
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: "Rate limit exceeded. Slow down." },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfter) } },
+    );
   }
 
   // Check force param
@@ -221,9 +241,8 @@ export async function POST(request: NextRequest) {
     memoryBlock,
   };
 
-  // LLM call
-  const openai = getLlm();
-  const model = MODELS.daily_report;
+  // LLM call — provider-agnostic (DECISIONS/011).
+  const model = resolveModel("daily_report", providerName);
   const startedAt = Date.now();
 
   let rawText = "";
@@ -232,22 +251,22 @@ export async function POST(request: NextRequest) {
   let costUsd = 0;
 
   try {
-    const resp = await openai.chat.completions.create({
+    const resp = await getConfiguredProvider().complete({
       model,
-      max_tokens: MAX_TOKENS,
+      maxTokens: MAX_TOKENS,
       temperature: 0.7,
-      response_format: { type: "json_object" },
+      jsonMode: true,
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: buildUserPrompt(promptInput) },
       ],
     });
-    tokensIn = resp.usage?.prompt_tokens ?? 0;
-    tokensOut = resp.usage?.completion_tokens ?? 0;
+    tokensIn = resp.usage.tokensIn;
+    tokensOut = resp.usage.tokensOut;
     costUsd = estimateCostUsd(model, tokensIn, tokensOut);
-    rawText = resp.choices[0]?.message?.content ?? "";
+    rawText = resp.text;
   } catch (e) {
-    const msg = (e as Error).message;
+    const msg = e instanceof Error ? e.message : String(e);
     await recordLlmCall({
       userId: user.id,
       task: "report",
@@ -256,6 +275,9 @@ export async function POST(request: NextRequest) {
       ok: false,
       error: msg,
     });
+    if (e instanceof LLMRateLimited) {
+      return NextResponse.json({ error: `LLM rate limited: ${msg}` }, { status: 429 });
+    }
     return NextResponse.json({ error: `LLM call failed: ${msg}` }, { status: 502 });
   }
 

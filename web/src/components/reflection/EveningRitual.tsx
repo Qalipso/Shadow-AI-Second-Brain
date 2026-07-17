@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MAIN_QUESTIONS, PSYCH_QUESTIONS } from "@/lib/reflection/questions";
 import { todayDateString } from "@/lib/reflection/wheel-utils";
 import type { DailyWheelScore } from "@/types/db";
 import type { GamificationResult } from "@/lib/gamification/points";
 import { ReflectionSummary } from "./ReflectionSummary";
+import { useModalBehavior } from "@/components/useModalBehavior";
 
 // ─── Step machine ─────────────────────────────────────────────────────────────
 // 0-11: main questions (12 areas)
@@ -126,9 +127,9 @@ export function EveningRitual() {
   // Keep ref current so the event listener always calls latest version.
   openModalRef.current = openModal;
 
-  function closeModal() {
-    setOpen(false);
-  }
+  // Memoized: the local Modal's shared behavior hook keys its effect on this
+  // reference, and the wizard re-renders on every answer selection.
+  const closeModal = useCallback(() => setOpen(false), []);
 
   function handleAnswer(slot: string, value: number) {
     setAnswers((prev) => ({ ...prev, [slot]: value }));
@@ -349,18 +350,17 @@ export function EveningRitual() {
 }
 
 // ─── Modal shell ─────────────────────────────────────────────────────────────
+// This is a private, file-local modal wrapper — one of the 8 hand-rolled
+// dialogs from issue #13, used 4x within this file. Kept file-local (not
+// merged into the shared components/Modal.tsx) but now shares the same
+// ESC/focus-trap/scroll-lock behavior via the extracted hook.
 function Modal({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
   const overlayRef = useRef<HTMLDivElement>(null);
+  const dialogRef = useModalBehavior<HTMLDivElement>({ open: true, onClose });
 
   function handleOverlayClick(e: React.MouseEvent) {
     if (e.target === overlayRef.current) onClose();
   }
-
-  // Lock scroll
-  useEffect(() => {
-    document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = ""; };
-  }, []);
 
   return (
     <div
@@ -369,7 +369,13 @@ function Modal({ children, onClose }: { children: React.ReactNode; onClose: () =
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center backdrop-blur-md"
       style={{ background: "rgba(6,5,14,0.72)" }}
     >
-      <div className="w-full sm:max-w-[560px] max-h-[90dvh] overflow-y-auto rounded-t-2xl sm:rounded-2xl bg-zinc-950 border border-zinc-800 px-6 py-6 shadow-2xl">
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        tabIndex={-1}
+        className="w-full sm:max-w-[560px] max-h-[90dvh] overflow-y-auto rounded-t-2xl sm:rounded-2xl bg-zinc-950 border border-zinc-800 px-6 py-6 shadow-2xl"
+      >
         {children}
       </div>
     </div>
