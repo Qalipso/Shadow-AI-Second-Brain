@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Button } from "@/components/Button";
 
 export function ConnectMusicProfile() {
   const [loading, setLoading] = useState<string | null>(null);
@@ -63,10 +64,10 @@ export function ConnectMusicProfile() {
       </p>
 
       <div className="flex flex-col gap-3 w-full max-w-[260px]">
-        <button
+        <Button
           onClick={connectSpotify}
           disabled={loading === "spotify"}
-          className="ritual-cta rounded-xl px-5 py-3 text-[13px] font-medium border"
+          className="rounded-xl px-5 py-3 text-[13px] font-medium border"
           style={{
             background: "rgba(126,87,194,0.12)",
             borderColor: "rgba(126,87,194,0.3)",
@@ -74,7 +75,7 @@ export function ConnectMusicProfile() {
           }}
         >
           {loading === "spotify" ? "Connecting…" : "Connect Spotify"}
-        </button>
+        </Button>
 
         <button
           disabled

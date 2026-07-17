@@ -38,11 +38,18 @@ export const MODELS = {
 
 export type LlmTask = keyof typeof MODELS;
 
+// Anthropic entries below: approximate list pricing, [Not verified] against
+// Anthropic's live pricing page this session — added alongside DECISIONS/011
+// (LLM provider abstraction) so cost tracking stays correct if LLM_PROVIDER
+// is swapped, not re-derived from a fresh source. Re-check before relying on
+// exact dollar figures for anything beyond order-of-magnitude comparison.
 export const PRICING: Record<string, { in_per_m: number; out_per_m: number }> = {
   "gpt-4o-mini": { in_per_m: 0.15, out_per_m: 0.6 },
   "gpt-4o":      { in_per_m: 2.5,  out_per_m: 10.0 },
   "gpt-5-mini":  { in_per_m: 0.25, out_per_m: 2.0 },
   "gpt-5":       { in_per_m: 1.25, out_per_m: 10.0 },
+  "claude-3-5-haiku-latest":  { in_per_m: 0.8, out_per_m: 4.0 },
+  "claude-3-5-sonnet-latest": { in_per_m: 3.0, out_per_m: 15.0 },
 };
 
 export function estimateCostUsd(

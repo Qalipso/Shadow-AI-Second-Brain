@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { X, ChevronRight } from "lucide-react";
 import type { Habit, HabitLog, HabitLogStatus } from "@/types/db";
+import { Button } from "@/components/Button";
 
 const SKIP_REASONS = [
   "No energy",
@@ -298,10 +299,10 @@ export function HabitDrawer({ habit, log, open, onClose, onSaved, date }: Props)
           )}
 
           {/* Save */}
-          <button
+          <Button
             onClick={handleSave}
             disabled={saving}
-            className="ritual-cta w-full py-3 rounded-xl text-[13px] font-mono uppercase tracking-wider flex items-center justify-center gap-2"
+            className="w-full py-3 rounded-xl text-[13px] font-mono uppercase tracking-wider flex items-center justify-center gap-2"
             style={{
               background: saving ? "var(--bg-elev3)" : "rgba(214, 184, 116, 0.08)",
               border: "1px solid var(--shadow-border-active)",
@@ -313,7 +314,7 @@ export function HabitDrawer({ habit, log, open, onClose, onSaved, date }: Props)
                 Confirm Trace <ChevronRight size={14} />
               </>
             )}
-          </button>
+          </Button>
         </div>
       </div>
     </>

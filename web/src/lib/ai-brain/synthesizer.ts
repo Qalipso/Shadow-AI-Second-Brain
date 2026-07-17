@@ -5,6 +5,7 @@ import { hasSupabase } from "@/lib/supabase/env";
 import { getLlm, hasLlm, MODELS, estimateCostUsd } from "@/lib/llm";
 import { recordLlmCall } from "@/lib/cost-ledger";
 import { upsertMemoryNode, createEdgeIfAbsent } from "@/lib/memory/graph";
+import { insertMemoryItems } from "@/lib/memory/write";
 import { generateEmbedding } from "@/lib/embeddings";
 import { isJunkEntry } from "./junk-filter";
 import {
@@ -152,8 +153,28 @@ export async function synthesizeMemory(
 
   const { data: rows } = await query.returns<EntryRow[]>();
   const all = rows ?? [];
-  const entries = all.filter((e) => !isJunkEntry(e.summary ?? e.raw_text));
-  const skipped = all.length - entries.length;
+  let entries = all.filter((e) => !isJunkEntry(e.summary ?? e.raw_text));
+  let skipped = all.length - entries.length;
+
+  // Batch idempotency (issue #21): single-entry mode already skips entries
+  // that have an existing memory_items/memory_graph_nodes row (above); batch
+  // mode had no equivalent, so a re-click of "Rebuild Brain" would re-process
+  // the same up-to-BATCH_LIMIT entries, double-writing memory and double-
+  // billing the LLM call. Reuses the same source_id-existence signal.
+  if (!opts.entryId && entries.length > 0) {
+    const candidateIds = entries.map((e) => e.id);
+    const [{ data: doneItems }, { data: doneNodes }] = await Promise.all([
+      supabase.from("memory_items").select("source_id").eq("user_id", userId).in("source_id", candidateIds),
+      supabase.from("memory_graph_nodes").select("source_id").eq("user_id", userId).in("source_id", candidateIds),
+    ]);
+    const done = new Set<string>([
+      ...(doneItems ?? []).map((r) => r.source_id as string),
+      ...(doneNodes ?? []).map((r) => r.source_id as string),
+    ]);
+    const before = entries.length;
+    entries = entries.filter((e) => !done.has(e.id));
+    skipped += before - entries.length;
+  }
 
   if (entries.length === 0) {
     return { ...EMPTY, skipped };
@@ -221,10 +242,9 @@ export async function synthesizeMemory(
   const nowIso = new Date().toISOString();
 
   // ── Write memory_items ──────────────────────────────────────────────────────
-  let itemsCreated = 0;
-  if (parsed.memory_items.length > 0) {
-    const itemRows = parsed.memory_items.map((m) => ({
-      user_id: userId,
+  const itemsCreated = await insertMemoryItems(
+    userId,
+    parsed.memory_items.map((m) => ({
       source_type: "brain_synthesis",
       source_id: sourceId,
       title: m.title,
@@ -234,14 +254,8 @@ export async function synthesizeMemory(
       stability: stabilityFor(m.memory_type),
       confidence: m.confidence,
       tags: m.tags,
-    }));
-    const { data: inserted, error } = await supabase
-      .from("memory_items")
-      .insert(itemRows)
-      .select("id");
-    if (!error) itemsCreated = inserted?.length ?? 0;
-    else console.error("[synthesizer] memory_items insert", error.message);
-  }
+    })),
+  );
 
   // ── Write graph nodes (dedup by label) ──────────────────────────────────────
   const labelToId = new Map<string, string>();

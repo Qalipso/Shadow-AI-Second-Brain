@@ -5,6 +5,7 @@ import { getUserEntries, getLifeAreas } from "@/lib/data";
 import { getUserGraph } from "@/lib/memory/graph";
 import { getMusicProfile } from "@/lib/music/data";
 import { AskShadow } from "@/components/memory/AskShadow";
+import { MemorySearch } from "@/components/memory/MemorySearch";
 import { MemoryTimeline } from "@/components/memory/MemoryTimeline";
 import { MemoryItemsSection } from "@/components/memory/MemoryItemsSection";
 import { MusicProfileCard } from "@/components/sonic/MusicProfileCard";
@@ -39,6 +40,10 @@ export default async function MemoryPage() {
 
       <Card title="Ask Shadow">
         <AskShadow />
+      </Card>
+
+      <Card title="Search Memory">
+        <MemorySearch />
       </Card>
 
       <div className="glow-line" />

@@ -2,7 +2,15 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { hasSupabase } from "@/lib/supabase/env";
-import { estimateCostUsd, getLlm, hasLlm, MODELS } from "@/lib/llm";
+import { estimateCostUsd } from "@/lib/llm";
+import { checkRateLimit, getRouteConfig } from "@/lib/rate-limit";
+import {
+  getConfiguredProvider,
+  getConfiguredProviderName,
+  hasProvider,
+  resolveModel,
+  LLMRateLimited,
+} from "@/lib/llm-provider";
 import { searchSimilarEntries, buildMemoryBlock } from "@/lib/rag";
 import {
   buildUserPrompt,
@@ -34,8 +42,12 @@ export async function POST(request: NextRequest) {
   if (!hasSupabase()) {
     return NextResponse.json({ error: "Supabase env missing." }, { status: 503 });
   }
-  if (!hasLlm()) {
-    return NextResponse.json({ error: "OPENAI_API_KEY missing." }, { status: 503 });
+  const providerName = getConfiguredProviderName();
+  if (!hasProvider(providerName)) {
+    return NextResponse.json(
+      { error: `${providerName === "anthropic" ? "ANTHROPIC_API_KEY" : "OPENAI_API_KEY"} missing.` },
+      { status: 503 },
+    );
   }
 
   let body: unknown;
@@ -58,6 +70,14 @@ export async function POST(request: NextRequest) {
   } = await supabase.auth.getUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  }
+
+  const rl = checkRateLimit(`${user.id}:memory-ask`, getRouteConfig("memory-ask"));
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: "Rate limit exceeded. Slow down." },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfter) } },
+    );
   }
 
   // Cost cap
@@ -86,14 +106,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       answer: "I don't have enough memory to answer that yet. Keep capturing, and I'll build context over time.",
       cited_entries: [],
+      sources: [],
       confidence: 0,
       matched: 0,
     });
   }
 
-  // LLM answer
-  const openai = getLlm();
-  const model = MODELS.rag_answer;
+  // LLM answer — provider-agnostic (DECISIONS/011).
+  const model = resolveModel("rag_answer", providerName);
   const startedAt = Date.now();
 
   let rawText = "";
@@ -102,22 +122,22 @@ export async function POST(request: NextRequest) {
   let costUsd = 0;
 
   try {
-    const resp = await openai.chat.completions.create({
+    const resp = await getConfiguredProvider().complete({
       model,
-      max_tokens: MAX_TOKENS,
+      maxTokens: MAX_TOKENS,
       temperature: 0.5,
-      response_format: { type: "json_object" },
+      jsonMode: true,
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: buildUserPrompt(question, memoryBlock) },
       ],
     });
-    tokensIn = resp.usage?.prompt_tokens ?? 0;
-    tokensOut = resp.usage?.completion_tokens ?? 0;
+    tokensIn = resp.usage.tokensIn;
+    tokensOut = resp.usage.tokensOut;
     costUsd = estimateCostUsd(model, tokensIn, tokensOut);
-    rawText = resp.choices[0]?.message?.content ?? "";
+    rawText = resp.text;
   } catch (e) {
-    const msg = (e as Error).message;
+    const msg = e instanceof Error ? e.message : String(e);
     await recordLlmCall({
       userId: user.id,
       task: "rag_answer",
@@ -126,6 +146,9 @@ export async function POST(request: NextRequest) {
       ok: false,
       error: msg,
     });
+    if (e instanceof LLMRateLimited) {
+      return NextResponse.json({ error: `LLM rate limited: ${msg}` }, { status: 429 });
+    }
     return NextResponse.json({ error: `LLM call failed: ${msg}` }, { status: 502 });
   }
 
@@ -180,9 +203,22 @@ export async function POST(request: NextRequest) {
     ok: true,
   });
 
+  // Resolve cited entry IDs against the entries already fetched for the
+  // memory block, so the client can show what actually grounded the answer
+  // instead of opaque UUIDs (issue #25) — no extra DB round trip needed.
+  const citedIds = new Set(result.cited_entries ?? []);
+  const sources = matchedEntries
+    .filter((e) => citedIds.has(e.id))
+    .map((e) => ({
+      id: e.id,
+      snippet: (e.summary ?? e.raw_text).slice(0, 140),
+      created_at: e.created_at,
+    }));
+
   return NextResponse.json({
     answer: result.answer,
     cited_entries: result.cited_entries ?? [],
+    sources,
     confidence: result.confidence ?? 0.5,
     matched: matchedEntries.length,
     usage: {
