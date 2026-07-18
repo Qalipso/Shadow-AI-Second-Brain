@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { hasSupabase } from "@/lib/supabase/env";
-import { insertMemoryItem } from "@/lib/memory/write";
+import { writeMemoryItems } from "@/lib/memory/writeMemoryItems";
 
 // POST /api/memory/items
 // Save a memory item from an inbox capture or other source.
@@ -48,21 +48,34 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   }
 
-  const item = await insertMemoryItem(user.id, {
-    title: parsed.data.title,
-    content: parsed.data.content,
-    source_type: "inbox",
-    source_id: parsed.data.source_id,
-    tags: parsed.data.tags,
-    importance: parsed.data.importance,
-    memory_type: "insight", // explicit: a manual capture is a generic saved thought
-  });
+  const { items, error } = await writeMemoryItems([
+    {
+      userId: user.id,
+      // Hardcoded, not client-settable (issue #23): this is the one
+      // user-facing capture path, so it can never write any of the other
+      // MEMORY_SOURCE_TYPES (e.g. "brain_synthesis") on a caller's behalf —
+      // a client can no longer POST its way into impersonating AI-authored
+      // provenance. Other source types are only ever written server-side by
+      // their own dedicated routes (save-memory, labs/complete, synthesizer).
+      sourceType: "inbox",
+      sourceId: parsed.data.source_id ?? null,
+      title: parsed.data.title,
+      content: parsed.data.content,
+      // Explicit, not the DB default (issue #22) — "insight" preserves what
+      // the column default already produced for every row this route has
+      // written so far; a finer per-item taxonomy is a product decision, not
+      // an architecture-boundary one, so it's deliberately not guessed here.
+      memoryType: "insight",
+      importance: parsed.data.importance,
+      tags: parsed.data.tags,
+    },
+  ]);
 
-  if (!item) {
-    return NextResponse.json({ error: "Insert failed." }, { status: 500 });
+  if (error) {
+    return NextResponse.json({ error }, { status: 500 });
   }
 
-  return NextResponse.json({ item }, { status: 201 });
+  return NextResponse.json({ item: items[0] }, { status: 201 });
 }
 
 // GET /api/memory/items?limit=20

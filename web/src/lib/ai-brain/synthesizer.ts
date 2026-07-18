@@ -5,7 +5,7 @@ import { hasSupabase } from "@/lib/supabase/env";
 import { getLlm, hasLlm, MODELS, estimateCostUsd } from "@/lib/llm";
 import { recordLlmCall } from "@/lib/cost-ledger";
 import { upsertMemoryNode, createEdgeIfAbsent } from "@/lib/memory/graph";
-import { insertMemoryItems } from "@/lib/memory/write";
+import { writeMemoryItems } from "@/lib/memory/writeMemoryItems";
 import { generateEmbedding } from "@/lib/embeddings";
 import { isJunkEntry } from "./junk-filter";
 import {
@@ -242,20 +242,26 @@ export async function synthesizeMemory(
   const nowIso = new Date().toISOString();
 
   // ── Write memory_items ──────────────────────────────────────────────────────
-  const itemsCreated = await insertMemoryItems(
-    userId,
-    parsed.memory_items.map((m) => ({
-      source_type: "brain_synthesis",
-      source_id: sourceId,
-      title: m.title,
-      content: m.content,
-      memory_type: m.memory_type,
-      importance: m.importance,
-      stability: stabilityFor(m.memory_type),
-      confidence: m.confidence,
-      tags: m.tags,
-    })),
-  );
+  // Single write path (ADR-014; review issue #22) — was its own direct insert.
+  let itemsCreated = 0;
+  if (parsed.memory_items.length > 0) {
+    const { written, error } = await writeMemoryItems(
+      parsed.memory_items.map((m) => ({
+        userId,
+        sourceType: "brain_synthesis",
+        sourceId,
+        title: m.title,
+        content: m.content,
+        memoryType: m.memory_type,
+        importance: m.importance,
+        stability: stabilityFor(m.memory_type),
+        confidence: m.confidence,
+        tags: m.tags,
+      })),
+    );
+    if (!error) itemsCreated = written;
+    else console.error("[synthesizer] memory_items insert", error);
+  }
 
   // ── Write graph nodes (dedup by label) ──────────────────────────────────────
   const labelToId = new Map<string, string>();

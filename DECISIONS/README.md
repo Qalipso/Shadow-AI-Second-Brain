@@ -21,6 +21,7 @@ Format follows [Michael Nygard's ADR template](https://cognitect.com/blog/2011/1
 | [011](./011-llm-provider-abstraction.md) | Provider-agnostic LLM layer (OpenAI + Anthropic adapters) | Accepted, partial rollout |
 | [012](./012-memory-graph-scope.md) | Memory graph is visualization-only, for now | Accepted |
 | [013](./013-swr-shared-data-layer.md) | SWR for shared server-data state; keep the rest as-is | Accepted, partial rollout |
+| [014](./014-modular-monolith-domain-infra-boundary.md) | Modular monolith with an enforced domain/infra boundary (not microservices) | Proposed |
 
 ## How to add a new ADR
 

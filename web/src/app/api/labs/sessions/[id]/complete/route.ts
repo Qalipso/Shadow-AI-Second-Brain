@@ -173,10 +173,13 @@ export async function POST(
               source_id: sessionId,
               title: mc.title,
               content: mc.content,
+              // Explicit, not the DB default (issue #22 — this exact call site
+              // was one of the paths silently misclassifying under 'insight'
+              // via column default; labs analysis candidates are insights).
+              memory_type: "insight" as const,
               importance: Math.min(5, Math.max(1, mc.importance ?? 3)),
               stability: mc.stability ?? "stable",
               tags: mc.tags ?? [],
-              memory_type: "insight" as const, // explicit (issue #22) — self-reflection results are genuinely insights, not a fallback default
               embedding,
             };
           }),
