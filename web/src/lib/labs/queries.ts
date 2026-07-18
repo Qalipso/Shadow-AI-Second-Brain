@@ -2,7 +2,7 @@ import "server-only";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { hasSupabase } from "@/lib/supabase/env";
 import type { LabsTest, LabsQuestion, LabsAnswerOption, LabsSession, LabsResult, ProfileAiSummary, MemoryItem } from "@/types/db";
-import { insertMemoryItems as insertMemoryItemsShared } from "@/lib/memory/write";
+import { writeMemoryItems, type MemorySourceType } from "@/lib/memory/writeMemoryItems";
 
 // ─── Tests ─────────────────────────────────────────────────────────────────
 
@@ -169,15 +169,25 @@ export async function getProfileAiSummary(userId: string): Promise<ProfileAiSumm
 
 // ─── Memory Items ──────────────────────────────────────────────────────────
 
-// embedding is stored separately via 20260521_labs_memory_vector.sql migration.
-// Strip it here to stay compatible with the base table (no vector column yet).
-// Delegates the actual insert to the shared lib/memory/write.ts path (#22) —
-// this wrapper stays only for its embedding-stripping + existing call-site shape.
+// embedding is stored separately via 20260521_labs_memory_vector.sql migration;
+// writeMemoryItems only persists columns that exist on the base table, so it's
+// dropped implicitly by not being part of MemoryItemDraft.
 export async function insertMemoryItems(
   items: Array<Omit<MemoryItem, "id" | "created_at" | "updated_at"> & { embedding?: unknown }>,
 ): Promise<void> {
-  if (!hasSupabase() || items.length === 0) return;
-  const userId = items[0].user_id;
-  const rows = items.map(({ embedding: _emb, user_id: _uid, ...rest }) => rest);
-  await insertMemoryItemsShared(userId, rows);
+  if (items.length === 0) return;
+  const { error } = await writeMemoryItems(
+    items.map((item) => ({
+      userId: item.user_id,
+      sourceType: item.source_type as MemorySourceType,
+      sourceId: item.source_id,
+      title: item.title,
+      content: item.content,
+      memoryType: item.memory_type,
+      importance: item.importance,
+      tags: item.tags,
+      stability: item.stability,
+    })),
+  );
+  if (error) console.error("[labs:insertMemoryItems]", error);
 }

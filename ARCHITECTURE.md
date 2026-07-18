@@ -253,11 +253,16 @@ See [DECISIONS/](./DECISIONS/) for full ADRs. Quick summary:
 | Tailwind vs. CSS-in-JS | Tailwind v4 + custom tokens | Speed of iteration, tokens for theming |
 | OpenAI vs. Claude | OpenAI primary | Function-calling maturity, JSON mode |
 | Supabase vs. raw Postgres | Supabase | Auth + RLS + Edge functions out of box |
+| Monolith vs. modular monolith vs. microservices | Modular monolith (domain/infra boundary, [ADR-014](./DECISIONS/014-modular-monolith-domain-infra-boundary.md)) | One developer + portfolio timeline can't carry service-boundary ownership or a service mesh; the observed pain (#22, #23, #11) is missing write-path contracts, not missing service isolation |
 
 ---
 
 ## Future Architecture Notes
 
+- **Domain/infra boundary:** [ADR-014](./DECISIONS/014-modular-monolith-domain-infra-boundary.md)
+  — `memory_items` writes now go through one contract (`lib/memory/`); `entries` and
+  `memory_graph_edges` are the next candidates when a second independent writer appears
+  for either.
 - **Multi-user:** RLS already in place; needs subscription billing + invite flow
 - **Mobile:** React Native shell calling existing API routes; offline-first capture queue
 - **Voice:** Whisper API for transcription → existing classification pipeline
