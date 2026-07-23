@@ -1,5 +1,7 @@
 # Shadow — AI Second Brain
 
+[![CI](https://github.com/Qalipso/Shadow-AI-Second-Brain/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Qalipso/Shadow-AI-Second-Brain/actions/workflows/ci.yml)
+
 **A personal AI memory system that turns messy daily input into structured memory, patterns, and decisions.**
 
 Shadow is not a task manager, journal, habit tracker, or Notion clone.
@@ -19,12 +21,12 @@ It is an external cognitive layer: you write what is happening in your life, and
 | AI Inbox / free-text capture | ✅ Live |
 | Auto-classification | ✅ Live |
 | 12 Life Areas wheel | ✅ Live |
-| Daily check-in | ✅ Live |
+| Daily check-in | ⚠️ Live — check-in→memory writes currently broken ([#18](https://github.com/Qalipso/Shadow-AI-Second-Brain/issues/18)) |
 | Daily report | ✅ Live |
 | Weekly review | ✅ Live |
 | RAG memory with pgvector | ✅ Live |
 | Shadow Brain memory synthesizer | ✅ Live |
-| Typed Memory Graph | ✅ Live |
+| Typed Memory Graph | ⚠️ Live, visualization-only — not yet fed back into AI context ([#20](https://github.com/Qalipso/Shadow-AI-Second-Brain/issues/20)) |
 | ShadowOrb memory chat | ✅ Live |
 | AI interventions | ✅ Live |
 | Labs / self-knowledge tests | ✅ Live |
@@ -34,6 +36,8 @@ It is an external cognitive layer: you write what is happening in your life, and
 | Voice capture (Web Speech API) | ✅ Live |
 | Mobile-first capture | ⏳ Planned |
 | Multi-user version | ⏳ Planned |
+
+> **Honest status.** This repo runs a public self-audit; statuses above are downgraded wherever an open issue contradicts "Live". Open Criticals not tied to a single module: LLM cost-cap bypass on the AI-summary route ([#19](https://github.com/Qalipso/Shadow-AI-Second-Brain/issues/19)), cost-cap race / `/api/embed` bypass ([#4](https://github.com/Qalipso/Shadow-AI-Second-Brain/issues/4)), account deletion doesn't cascade ([#3](https://github.com/Qalipso/Shadow-AI-Second-Brain/issues/3)). Full list: [open issues](https://github.com/Qalipso/Shadow-AI-Second-Brain/issues).
 
 ---
 
