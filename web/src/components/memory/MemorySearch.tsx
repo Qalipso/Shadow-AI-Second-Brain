@@ -208,7 +208,7 @@ export function MemorySearch() {
       {results === null && !loading && (
         <div className="text-center py-4">
           <p className="text-[11px] text-zinc-500">
-            Shadow's memory is empty. Every thought you capture becomes a memory.{" "}
+            Shadow&apos;s memory is empty. Every thought you capture becomes a memory.{" "}
             <a href="/inbox" className="text-zinc-500 hover:text-zinc-300 underline transition-colors">
               Drop one into Inbox →
             </a>
