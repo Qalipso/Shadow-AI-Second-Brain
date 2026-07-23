@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/Card";
 import { getLifeAreas, getEntriesByArea, getLatestScores } from "@/lib/data";
@@ -31,12 +32,12 @@ export default async function AreaDetailPage({ params }: Props) {
         title={area.name}
         subtitle={area.description ?? `Signals routed to ${area.name}.`}
         right={
-          <a
+          <Link
             href="/areas"
             className="text-[11px] text-zinc-500 hover:text-zinc-300"
           >
             ← All areas
-          </a>
+          </Link>
         }
       />
 

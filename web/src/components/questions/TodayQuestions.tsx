@@ -92,7 +92,7 @@ export function TodayQuestions({ questions }: { questions: Question[] }) {
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <p className="text-[11px] uppercase tracking-[0.25em] text-[var(--accent-warm)]">
-            Today's {count} questions
+            Today&apos;s {count} questions
           </p>
           <p className="text-[11px] text-zinc-500 mt-0.5">
             Shadow picks these per day. Answer in the check-in to feed your state and life circle.
