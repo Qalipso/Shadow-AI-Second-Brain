@@ -10,12 +10,7 @@ import {
   resolveModel,
   LLMRateLimited,
 } from "@/lib/llm-provider";
-import {
-  isOverDailyCap,
-  maxDailyUsd,
-  recordLlmCall,
-  todaysCostUsd,
-} from "@/lib/cost-ledger";
+import { recordLlmCall, reserveLlmBudget } from "@/lib/cost-ledger";
 import { buildMemoryContext } from "@/lib/memory/context";
 import { buildChatMessages, isDeepQuery } from "@/ai/prompts/shadow-chat";
 import { checkRateLimit, getRouteConfig } from "@/lib/rate-limit";
@@ -87,13 +82,13 @@ export async function POST(request: NextRequest) {
   }
 
   // Cost cap
-  if (await isOverDailyCap(user.id)) {
-    const spent = await todaysCostUsd(user.id);
+  const budget = await reserveLlmBudget(user.id);
+  if (!budget.allowed) {
     return NextResponse.json(
       {
         error: "Daily LLM cost cap reached.",
-        spent_usd: Number(spent.toFixed(4)),
-        cap_usd: maxDailyUsd(),
+        spent_usd: Number(budget.spentUsd.toFixed(4)),
+        cap_usd: budget.capUsd,
       },
       { status: 429 },
     );
@@ -144,7 +139,7 @@ export async function POST(request: NextRequest) {
       task: "chat",
       model,
       latencyMs: Date.now() - startedAt,
-      ok: false,
+      ok: false, reservedUsd: budget.reservedUsd,
       error: msg,
     });
     if (e instanceof LLMRateLimited) {
@@ -163,7 +158,7 @@ export async function POST(request: NextRequest) {
     tokensIn,
     tokensOut,
     costUsd,
-    ok: true,
+    ok: true, reservedUsd: budget.reservedUsd,
   });
 
   const sources = ctx.similar.slice(0, 3).map((e) => ({

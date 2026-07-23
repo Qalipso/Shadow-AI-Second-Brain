@@ -3,7 +3,7 @@ import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { hasSupabase } from "@/lib/supabase/env";
 import { hasLlm } from "@/lib/llm";
-import { isOverDailyCap, maxDailyUsd, todaysCostUsd } from "@/lib/cost-ledger";
+import { reserveLlmBudget } from "@/lib/cost-ledger";
 import { checkRateLimit, getRouteConfig } from "@/lib/rate-limit";
 import { synthesizeMemory } from "@/lib/ai-brain/synthesizer";
 
@@ -52,13 +52,13 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  if (await isOverDailyCap(user.id)) {
-    const spent = await todaysCostUsd(user.id);
+  const budget = await reserveLlmBudget(user.id);
+  if (!budget.allowed) {
     return NextResponse.json(
       {
         error: "Daily LLM cost cap reached.",
-        spent_usd: Number(spent.toFixed(4)),
-        cap_usd: maxDailyUsd(),
+        spent_usd: Number(budget.spentUsd.toFixed(4)),
+        cap_usd: budget.capUsd,
       },
       { status: 429 },
     );

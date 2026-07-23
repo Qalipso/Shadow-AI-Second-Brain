@@ -39,6 +39,70 @@ export async function isOverDailyCap(userId: string | null): Promise<boolean> {
   return spent >= maxDailyUsd();
 }
 
+// ---------------------------------------------------------------------------
+// Atomic budget (issue #4). Accounting model:
+//   1. Route reserves an estimate BEFORE the LLM call — one atomic statement
+//      in Postgres (llm_reserve_budget) books it or denies at the cap, so
+//      concurrent requests can no longer all slip under the cap together.
+//   2. recordLlmCall settles the difference (actual − reserved) once the real
+//      cost is known. Lib-internal calls that were covered by a route-level
+//      reservation simply don't pass reservedUsd — the estimate stands, which
+//      errs on the conservative (over-counting) side.
+// Until the migration is applied the RPC is missing; reserveLlmBudget then
+// falls back to the legacy non-atomic check so the app keeps working.
+
+export const DEFAULT_RESERVE_USD = 0.05;
+
+export type BudgetReservation = {
+  allowed: boolean;
+  spentUsd: number;
+  capUsd: number;
+  /** What was actually booked (0 when denied or when running on the fallback). */
+  reservedUsd: number;
+};
+
+export async function reserveLlmBudget(
+  userId: string | null,
+  estimateUsd: number = DEFAULT_RESERVE_USD,
+): Promise<BudgetReservation> {
+  const capUsd = maxDailyUsd();
+  if (!hasSupabase()) {
+    return { allowed: true, spentUsd: 0, capUsd, reservedUsd: 0 };
+  }
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("llm_reserve_budget", {
+    p_estimate: estimateUsd,
+    p_cap: capUsd,
+  });
+  if (error) {
+    // RPC not deployed yet or transient failure → legacy check-then-act.
+    console.error("[cost-ledger] reserve rpc failed, using non-atomic fallback", error.message);
+    const spentUsd = await todaysCostUsd(userId);
+    return { allowed: spentUsd < capUsd, spentUsd, capUsd, reservedUsd: 0 };
+  }
+  const row = (Array.isArray(data) ? data[0] : data) as
+    | { allowed: boolean; spent_usd: number | null }
+    | undefined;
+  const allowed = row?.allowed === true;
+  return {
+    allowed,
+    spentUsd: Number(row?.spent_usd ?? 0),
+    capUsd,
+    reservedUsd: allowed ? estimateUsd : 0,
+  };
+}
+
+export async function settleLlmSpend(deltaUsd: number): Promise<void> {
+  if (!hasSupabase() || deltaUsd === 0) return;
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { error } = await supabase.rpc("llm_settle_spend", { p_delta: deltaUsd });
+    if (error) console.error("[cost-ledger] settle rpc failed", error.message);
+  } catch (e) {
+    console.error("[cost-ledger] settle threw", (e as Error).message);
+  }
+}
+
 type LogInput = {
   userId: string | null;
   task: string;
@@ -49,6 +113,8 @@ type LogInput = {
   costUsd?: number;
   ok: boolean;
   error?: string;
+  /** Route-level reservation this call settles against (see reserveLlmBudget). */
+  reservedUsd?: number;
 };
 
 // Returns the inserted row id (for linking ai_feedback), or null on failure.
@@ -74,6 +140,11 @@ export async function recordLlmCall(input: LogInput): Promise<string | null> {
     if (error) {
       console.error("[cost-ledger] insert failed", error.message);
       return null;
+    }
+    if (input.reservedUsd !== undefined) {
+      // True-up the atomic counter: failed calls release the whole reservation.
+      const actual = input.ok ? (input.costUsd ?? 0) : 0;
+      await settleLlmSpend(actual - input.reservedUsd);
     }
     return data?.id ?? null;
   } catch (e) {

@@ -16,12 +16,7 @@ import {
   buildUserPrompt,
   SYSTEM_PROMPT,
 } from "@/ai/prompts/daily-report";
-import {
-  isOverDailyCap,
-  maxDailyUsd,
-  recordLlmCall,
-  todaysCostUsd,
-} from "@/lib/cost-ledger";
+import { recordLlmCall, reserveLlmBudget } from "@/lib/cost-ledger";
 
 // POST /api/reports/daily
 // GET  /api/reports/daily?date=YYYY-MM-DD  (fetch cached)
@@ -124,10 +119,10 @@ export async function POST(request: NextRequest) {
   }
 
   // Cost cap
-  if (await isOverDailyCap(user.id)) {
-    const spent = await todaysCostUsd(user.id);
+  const budget = await reserveLlmBudget(user.id);
+  if (!budget.allowed) {
     return NextResponse.json(
-      { error: "Daily LLM cost cap reached.", spent_usd: Number(spent.toFixed(4)), cap_usd: maxDailyUsd() },
+      { error: "Daily LLM cost cap reached.", spent_usd: Number(budget.spentUsd.toFixed(4)), cap_usd: budget.capUsd },
       { status: 429 },
     );
   }
@@ -272,7 +267,7 @@ export async function POST(request: NextRequest) {
       task: "report",
       model,
       latencyMs: Date.now() - startedAt,
-      ok: false,
+      ok: false, reservedUsd: budget.reservedUsd,
       error: msg,
     });
     if (e instanceof LLMRateLimited) {
@@ -353,7 +348,7 @@ export async function POST(request: NextRequest) {
     tokensIn,
     tokensOut,
     costUsd,
-    ok: true,
+    ok: true, reservedUsd: budget.reservedUsd,
   });
 
   return NextResponse.json(

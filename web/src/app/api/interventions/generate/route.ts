@@ -3,12 +3,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { hasSupabase } from "@/lib/supabase/env";
 import { estimateCostUsd, getLlm, hasLlm, MODELS } from "@/lib/llm";
 import { checkRateLimit, getRouteConfig } from "@/lib/rate-limit";
-import {
-  isOverDailyCap,
-  maxDailyUsd,
-  recordLlmCall,
-  todaysCostUsd,
-} from "@/lib/cost-ledger";
+import { recordLlmCall, reserveLlmBudget } from "@/lib/cost-ledger";
 import {
   GenerateRequest,
   InterventionResult,
@@ -101,13 +96,13 @@ export async function POST(request: NextRequest) {
   }
 
   // Cost cap
-  if (await isOverDailyCap(user.id)) {
-    const spent = await todaysCostUsd(user.id);
+  const budget = await reserveLlmBudget(user.id);
+  if (!budget.allowed) {
     return NextResponse.json(
       {
         error: "Daily LLM cost cap reached.",
-        spent_usd: Number(spent.toFixed(4)),
-        cap_usd: maxDailyUsd(),
+        spent_usd: Number(budget.spentUsd.toFixed(4)),
+        cap_usd: budget.capUsd,
       },
       { status: 429 },
     );
@@ -155,7 +150,7 @@ export async function POST(request: NextRequest) {
       task: "classify",
       model,
       latencyMs: Date.now() - startedAt,
-      ok: false,
+      ok: false, reservedUsd: budget.reservedUsd,
       error: msg,
     });
     return NextResponse.json({ error: `LLM call failed: ${msg}` }, { status: 502 });
@@ -197,7 +192,7 @@ export async function POST(request: NextRequest) {
     tokensIn,
     tokensOut,
     costUsd,
-    ok: true,
+    ok: true, reservedUsd: budget.reservedUsd,
   });
 
   const firstAction = extractFirstAction(resultParsed.data);

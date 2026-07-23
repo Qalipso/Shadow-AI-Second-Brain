@@ -3,7 +3,7 @@ import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { hasSupabase } from "@/lib/supabase/env";
 import { estimateCostUsd, getLlm, hasLlm, MODELS } from "@/lib/llm";
-import { isOverDailyCap, recordLlmCall } from "@/lib/cost-ledger";
+import { recordLlmCall, reserveLlmBudget } from "@/lib/cost-ledger";
 import { checkRateLimit, getRouteConfig } from "@/lib/rate-limit";
 import { getLabsSession, insertMemoryItems } from "@/lib/labs/queries";
 import { calcDimensionScores, normalizeValue, scoresToJson } from "@/lib/labs/scoring";
@@ -105,7 +105,8 @@ export async function POST(
   let aiSummaryText: string | null = null;
   let confidence: number | null = null;
 
-  if (hasLlm() && !(await isOverDailyCap(user.id))) {
+  const budget = hasLlm() ? await reserveLlmBudget(user.id) : null;
+  if (budget?.allowed) {
     const { data: testRow } = await supabase
       .from("labs_tests")
       .select("title, slug, category")
@@ -152,6 +153,7 @@ export async function POST(
       await recordLlmCall({
         userId: user.id, task: "labs_analysis", model,
         latencyMs: Date.now() - startedLlm, tokensIn, tokensOut, costUsd, ok: true,
+        reservedUsd: budget.reservedUsd,
       });
 
       // 5. Save memory candidates

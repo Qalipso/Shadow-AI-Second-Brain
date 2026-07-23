@@ -5,7 +5,7 @@ import { hasLlm, estimateCostUsd, MODELS } from "@/lib/llm";
 import { regenerateAISummary } from "@/lib/ai-brain/summary-generator";
 import { detectKnowledgeGaps } from "@/lib/ai-brain/knowledge-gaps";
 import { generateQuestionFromGap } from "@/lib/ai-brain/question-generator";
-import { recordLlmCall, isOverDailyCap, maxDailyUsd, todaysCostUsd } from "@/lib/cost-ledger";
+import { recordLlmCall, reserveLlmBudget } from "@/lib/cost-ledger";
 import { checkRateLimit, getRouteConfig } from "@/lib/rate-limit";
 
 // POST /api/profile/ai-summary/regenerate
@@ -33,13 +33,13 @@ export async function POST() {
     );
   }
 
-  if (await isOverDailyCap(user.id)) {
-    const spent = await todaysCostUsd(user.id);
+  const budget = await reserveLlmBudget(user.id);
+  if (!budget.allowed) {
     return NextResponse.json(
       {
         error: "Daily LLM cost cap reached.",
-        spent_usd: Number(spent.toFixed(4)),
-        cap_usd: maxDailyUsd(),
+        spent_usd: Number(budget.spentUsd.toFixed(4)),
+        cap_usd: budget.capUsd,
       },
       { status: 429 },
     );
@@ -57,7 +57,7 @@ export async function POST() {
       task: "ai_summary_regen",
       model: MODELS.daily_report,
       latencyMs: Date.now() - startedAt,
-      ok: false,
+      ok: false, reservedUsd: budget.reservedUsd,
       error: msg,
     });
     return NextResponse.json({ error: `Summary generation failed: ${msg}` }, { status: 502 });
@@ -150,7 +150,7 @@ export async function POST() {
     tokensIn: summaryResult.tokensIn,
     tokensOut: summaryResult.tokensOut,
     costUsd: estimateCostUsd(MODELS.daily_report, summaryResult.tokensIn, summaryResult.tokensOut),
-    ok: true,
+    ok: true, reservedUsd: budget.reservedUsd,
   });
 
   return NextResponse.json(
