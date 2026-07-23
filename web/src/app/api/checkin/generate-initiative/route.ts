@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { hasSupabase } from "@/lib/supabase/env";
 import { getLlm, hasLlm, MODELS, estimateCostUsd } from "@/lib/llm";
-import { isOverDailyCap, recordLlmCall } from "@/lib/cost-ledger";
+import { recordLlmCall, reserveLlmBudget } from "@/lib/cost-ledger";
 import { checkRateLimit, getRouteConfig } from "@/lib/rate-limit";
 
 // POST /api/checkin/generate-initiative
@@ -78,7 +78,8 @@ export async function POST(req: NextRequest) {
   const energyLow = checkin.energy !== null && checkin.energy <= 2;
   const noisyMind = checkin.mental_noise !== null && checkin.mental_noise >= 4;
 
-  if (!hasLlm() || await isOverDailyCap(user.id)) {
+  const budget = hasLlm() ? await reserveLlmBudget(user.id) : null;
+  if (!budget?.allowed) {
     const defaultInitiative = buildDefaultInitiative(energyLow, noisyMind, checkin);
     await saveInitiative(supabase, user.id, checkin.id, defaultInitiative);
     await supabase.from("daily_checkins").update({
@@ -136,7 +137,7 @@ Output JSON:
     const rawText = resp.choices[0]?.message?.content ?? "{}";
     const initiative = JSON.parse(rawText);
 
-    await recordLlmCall({ userId: user.id, task: "today_initiative", model, latencyMs: Date.now() - startedAt, tokensIn, tokensOut, costUsd, ok: true });
+    await recordLlmCall({ userId: user.id, task: "today_initiative", model, latencyMs: Date.now() - startedAt, tokensIn, tokensOut, costUsd, ok: true, reservedUsd: budget.reservedUsd });
 
     await saveInitiative(supabase, user.id, checkin.id, initiative);
     await supabase.from("daily_checkins").update({
@@ -149,7 +150,7 @@ Output JSON:
     return NextResponse.json({ initiative });
   } catch (err) {
     const msg = (err as Error).message;
-    await recordLlmCall({ userId: user.id, task: "today_initiative", model, latencyMs: Date.now() - startedAt, ok: false, error: msg }).catch(() => {});
+    await recordLlmCall({ userId: user.id, task: "today_initiative", model, latencyMs: Date.now() - startedAt, ok: false, error: msg, reservedUsd: budget.reservedUsd }).catch(() => {});
     const fallback = buildDefaultInitiative(energyLow, noisyMind, checkin);
     return NextResponse.json({ initiative: fallback });
   }

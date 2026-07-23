@@ -4,7 +4,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { hasSupabase } from "@/lib/supabase/env";
 import { hasLlm } from "@/lib/llm";
 import { generateEmbedding, embedModel } from "@/lib/embeddings";
-import { recordLlmCall, isOverDailyCap, maxDailyUsd, todaysCostUsd } from "@/lib/cost-ledger";
+import { recordLlmCall, isOverDailyCap, reserveLlmBudget } from "@/lib/cost-ledger";
 import { checkRateLimit, getRouteConfig } from "@/lib/rate-limit";
 
 // POST /api/embed { entry_id }
@@ -61,13 +61,13 @@ export async function POST(request: NextRequest) {
       { status: 429, headers: { "Retry-After": String(rl.retryAfter) } },
     );
   }
-  if (await isOverDailyCap(user.id)) {
-    const spent = await todaysCostUsd(user.id);
+  const budget = await reserveLlmBudget(user.id);
+  if (!budget.allowed) {
     return NextResponse.json(
       {
         error: "Daily LLM cost cap reached.",
-        spent_usd: Number(spent.toFixed(4)),
-        cap_usd: maxDailyUsd(),
+        spent_usd: Number(budget.spentUsd.toFixed(4)),
+        cap_usd: budget.capUsd,
       },
       { status: 429 },
     );
@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
       tokensIn: result.tokensUsed,
       tokensOut: 0,
       costUsd: result.costUsd,
-      ok: true,
+      ok: true, reservedUsd: budget.reservedUsd,
     });
 
     return NextResponse.json({
@@ -133,7 +133,7 @@ export async function POST(request: NextRequest) {
       task: "embed",
       model: embedModel(),
       latencyMs: Date.now() - startedAt,
-      ok: false,
+      ok: false, reservedUsd: budget.reservedUsd,
       error: msg,
     });
     return NextResponse.json({ error: msg }, { status: 502 });

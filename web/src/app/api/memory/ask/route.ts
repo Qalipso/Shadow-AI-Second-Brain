@@ -16,12 +16,7 @@ import {
   buildUserPrompt,
   SYSTEM_PROMPT,
 } from "@/ai/prompts/memory-answer";
-import {
-  isOverDailyCap,
-  maxDailyUsd,
-  recordLlmCall,
-  todaysCostUsd,
-} from "@/lib/cost-ledger";
+import { recordLlmCall, reserveLlmBudget } from "@/lib/cost-ledger";
 
 // POST /api/memory/ask { question }
 // Semantic search over past entries + LLM answer.
@@ -81,10 +76,10 @@ export async function POST(request: NextRequest) {
   }
 
   // Cost cap
-  if (await isOverDailyCap(user.id)) {
-    const spent = await todaysCostUsd(user.id);
+  const budget = await reserveLlmBudget(user.id);
+  if (!budget.allowed) {
     return NextResponse.json(
-      { error: "Daily LLM cost cap reached.", spent_usd: Number(spent.toFixed(4)), cap_usd: maxDailyUsd() },
+      { error: "Daily LLM cost cap reached.", spent_usd: Number(budget.spentUsd.toFixed(4)), cap_usd: budget.capUsd },
       { status: 429 },
     );
   }
@@ -143,7 +138,7 @@ export async function POST(request: NextRequest) {
       task: "rag_answer",
       model,
       latencyMs: Date.now() - startedAt,
-      ok: false,
+      ok: false, reservedUsd: budget.reservedUsd,
       error: msg,
     });
     if (e instanceof LLMRateLimited) {
@@ -200,7 +195,7 @@ export async function POST(request: NextRequest) {
     tokensIn,
     tokensOut,
     costUsd,
-    ok: true,
+    ok: true, reservedUsd: budget.reservedUsd,
   });
 
   // Resolve cited entry IDs against the entries already fetched for the

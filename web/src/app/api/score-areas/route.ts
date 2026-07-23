@@ -10,12 +10,7 @@ import {
   hasProvider,
   resolveModel,
 } from "@/lib/llm-provider";
-import {
-  isOverDailyCap,
-  maxDailyUsd,
-  recordLlmCall,
-  todaysCostUsd,
-} from "@/lib/cost-ledger";
+import { recordLlmCall, reserveLlmBudget } from "@/lib/cost-ledger";
 import {
   type AreaFacts,
   type AiAdjustment,
@@ -102,10 +97,10 @@ export async function POST() {
   }
 
   // Cost cap
-  if (await isOverDailyCap(user.id)) {
-    const spent = await todaysCostUsd(user.id);
+  const budget = await reserveLlmBudget(user.id);
+  if (!budget.allowed) {
     return NextResponse.json(
-      { error: "Daily LLM cost cap reached.", spent_usd: Number(spent.toFixed(4)), cap_usd: maxDailyUsd() },
+      { error: "Daily LLM cost cap reached.", spent_usd: Number(budget.spentUsd.toFixed(4)), cap_usd: budget.capUsd },
       { status: 429 },
     );
   }
@@ -320,7 +315,7 @@ export async function POST() {
         tokensIn,
         tokensOut,
         costUsd,
-        ok: true,
+        ok: true, reservedUsd: budget.reservedUsd,
       });
     } catch (e) {
       const msg = (e as Error).message;
@@ -329,7 +324,7 @@ export async function POST() {
         task: "area_scoring",
         model,
         latencyMs: Date.now() - startedAt,
-        ok: false,
+        ok: false, reservedUsd: budget.reservedUsd,
         error: msg,
       });
       // Continue without AI adjustments — factual scores still valid

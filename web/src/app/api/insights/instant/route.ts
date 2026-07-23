@@ -4,12 +4,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { hasSupabase } from "@/lib/supabase/env";
 import { estimateCostUsd, getLlm, hasLlm, MODELS } from "@/lib/llm";
 import { checkRateLimit, getRouteConfig } from "@/lib/rate-limit";
-import {
-  isOverDailyCap,
-  maxDailyUsd,
-  recordLlmCall,
-  todaysCostUsd,
-} from "@/lib/cost-ledger";
+import { recordLlmCall, reserveLlmBudget } from "@/lib/cost-ledger";
 
 // POST /api/insights/instant
 // Generates a first-session instant insight from the user's very first capture.
@@ -61,10 +56,10 @@ export async function POST(request: NextRequest) {
   }
 
   // Cost cap
-  if (await isOverDailyCap(user.id)) {
-    const spent = await todaysCostUsd(user.id);
+  const budget = await reserveLlmBudget(user.id);
+  if (!budget.allowed) {
     return NextResponse.json(
-      { error: "Daily LLM cost cap reached.", spent_usd: Number(spent.toFixed(4)), cap_usd: maxDailyUsd() },
+      { error: "Daily LLM cost cap reached.", spent_usd: Number(budget.spentUsd.toFixed(4)), cap_usd: budget.capUsd },
       { status: 429 },
     );
   }
@@ -116,12 +111,12 @@ Where follow_up is one practical question Shadow could ask next.`;
     followUp = json.follow_up ?? "";
     await recordLlmCall({
       userId: user.id, task: "instant_insight", model,
-      latencyMs: Date.now() - llmStarted, tokensIn, tokensOut, costUsd, ok: true,
+      latencyMs: Date.now() - llmStarted, tokensIn, tokensOut, costUsd, ok: true, reservedUsd: budget.reservedUsd,
     });
   } catch (e) {
     await recordLlmCall({
       userId: user.id, task: "instant_insight", model,
-      latencyMs: Date.now() - llmStarted, ok: false, error: (e as Error).message,
+      latencyMs: Date.now() - llmStarted, ok: false, reservedUsd: budget.reservedUsd, error: (e as Error).message,
     });
     return NextResponse.json(
       { error: `LLM failed: ${(e as Error).message}` },
